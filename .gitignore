@@ -1,0 +1,61 @@
+# Dependências e ambientes locais
+node_modules/
+.env
+.env.local
+.env.*.local
+*.local
+
+# Artefatos de build e distribuição
+dist/
+build/
+out/
+*.tgz
+*.tar.gz
+*.zip
+
+# Caches e temporários
+.cache/
+tmp/
+temp/
+*.tmp
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+
+# IDEs e editores
+.idea/
+.vscode/
+*.code-workspace
+.DS_Store
+Thumbs.db
+
+# Kiro — arquivos locais gerados automaticamente
+.kiro/cache/
+.kiro/sessions/
+.kiro/*.local.*
+
+# Python (scripts auxiliares)
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+
+# Ruby (scripts auxiliares)
+.bundle/
+vendor/bundle/
+
+# Scripts — artefatos de execução
+scripts/*.pid
+scripts/*.lock
+
+# Segurança — nunca commitar
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/

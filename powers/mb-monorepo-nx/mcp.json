@@ -1,0 +1,23 @@
+{
+  "_comment": "Configuração MCP do power mb-monorepo-nx. Preencher com servidores e ferramentas reais quando disponíveis.",
+  "version": "0.1.0",
+  "power": "mb-monorepo-nx",
+  "mcpServers": {
+    "_placeholder": {
+      "_comment": "TODO: Adicionar servidores MCP reais aqui quando disponíveis."
+    }
+  },
+  "tools": {
+    "_comment": "TODO: Definir as ferramentas Nx-específicas expostas por este power via MCP.",
+    "_placeholder_tools": [
+      "nx:generate-lib",
+      "nx:generate-app",
+      "nx:analyze-dependencies",
+      "nx:review-boundaries",
+      "nx:audit-tags"
+    ]
+  },
+  "resources": {
+    "_comment": "TODO: Definir os recursos acessíveis por este power (ex.: nx.json, project.json dos packages)."
+  }
+}

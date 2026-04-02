@@ -1,0 +1,23 @@
+{
+  "_comment": "Configuração MCP do power mb-frontend-react-next. Preencher com servidores e ferramentas reais quando disponíveis.",
+  "version": "0.1.0",
+  "power": "mb-frontend-react-next",
+  "mcpServers": {
+    "_placeholder": {
+      "_comment": "TODO: Adicionar servidores MCP reais aqui quando disponíveis."
+    }
+  },
+  "tools": {
+    "_comment": "TODO: Definir as ferramentas React/Next.js-específicas expostas por este power via MCP.",
+    "_placeholder_tools": [
+      "react:generate-component",
+      "react:generate-page",
+      "react:generate-hook",
+      "react:analyze-bundle",
+      "react:review-accessibility"
+    ]
+  },
+  "resources": {
+    "_comment": "TODO: Definir os recursos acessíveis por este power."
+  }
+}

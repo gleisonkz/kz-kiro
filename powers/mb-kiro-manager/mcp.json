@@ -1,0 +1,30 @@
+{
+  "_comment": "Configuração MCP do power mb-kiro-manager. Preencher com servidores e ferramentas reais quando disponíveis.",
+  "version": "0.1.0",
+  "power": "mb-kiro-manager",
+  "mcpServers": {
+    "_placeholder": {
+      "_comment": "TODO: Adicionar servidores MCP reais aqui quando disponíveis. Exemplo:",
+      "_example": {
+        "command": "node",
+        "args": ["path/to/mcp-server.js"],
+        "env": {
+          "MB_KIRO_REGISTRY_URL": "${MB_KIRO_REGISTRY_URL}"
+        }
+      }
+    }
+  },
+  "tools": {
+    "_comment": "TODO: Definir as ferramentas expostas por este power via MCP.",
+    "_placeholder_tools": [
+      "manager:bootstrap",
+      "manager:sync",
+      "manager:doctor",
+      "manager:status",
+      "manager:rollback"
+    ]
+  },
+  "resources": {
+    "_comment": "TODO: Definir os recursos acessíveis por este power (ex.: arquivos de configuração, APIs internas)."
+  }
+}
