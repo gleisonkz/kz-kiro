@@ -9,15 +9,16 @@
 #   ./scripts/bootstrap.sh [opções]
 #
 # Opções:
-#   --project-type <tipo>   Tipo de projeto: backend-nest | frontend-react-next
+#   --project-type <tipo>   Tipo de projeto: backend-nest | frontend-react
 #   --target <caminho>      Caminho para o diretório do projeto destino
 #   --powers <lista>        Lista de powers adicionais separados por vírgula (opcional)
 #   --dry-run               Simula a execução sem aplicar mudanças
+#   --force                 Sobrescreve arquivos existentes sem perguntar
 #   --help                  Exibe esta mensagem de ajuda
 #
 # Exemplos:
 #   ./scripts/bootstrap.sh --project-type backend-nest --target ../meu-projeto
-#   ./scripts/bootstrap.sh --project-type frontend-react-next --target ../frontend --dry-run
+#   ./scripts/bootstrap.sh --project-type frontend-react --target ../frontend --dry-run
 # =============================================================================
 
 set -euo pipefail
@@ -35,7 +36,11 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
+
+# Contadores
+FILES_COPIED=0
+FILES_SKIPPED=0
 
 # -----------------------------------------------------------------------------
 # Funções de utilidade
@@ -51,6 +56,55 @@ print_help() {
   exit 0
 }
 
+# Copia arquivos de um diretório fonte para destino.
+# Pula READMEs do archetype. Respeita --dry-run e --force.
+copy_files() {
+  local src_dir="$1"
+  local dest_dir="$2"
+  local file_pattern="${3:-*}"
+
+  if [[ ! -d "${src_dir}" ]]; then
+    log_warn "Diretório fonte não encontrado: ${src_dir}"
+    return
+  fi
+
+  # Contar arquivos disponíveis (excluindo README.md)
+  local file_count
+  file_count=$(find "${src_dir}" -maxdepth 1 -name "${file_pattern}" -not -name "README.md" -type f 2>/dev/null | wc -l | tr -d ' ')
+
+  if [[ "${file_count}" -eq 0 ]]; then
+    log_warn "Nenhum arquivo encontrado em: ${src_dir}"
+    return
+  fi
+
+  if [[ "${DRY_RUN}" == true ]]; then
+    log_warn "[DRY-RUN] Copiaria ${file_count} arquivo(s) de ${src_dir} para ${dest_dir}"
+    return
+  fi
+
+  mkdir -p "${dest_dir}"
+
+  for file in "${src_dir}"/${file_pattern}; do
+    [[ ! -f "${file}" ]] && continue
+    local filename
+    filename=$(basename "${file}")
+
+    # Pular READMEs do archetype
+    [[ "${filename}" == "README.md" ]] && continue
+
+    local dest_file="${dest_dir}/${filename}"
+
+    if [[ -f "${dest_file}" && "${FORCE}" == false ]]; then
+      log_warn "Arquivo já existe (pulando): ${dest_file}"
+      ((FILES_SKIPPED++)) || true
+    else
+      cp "${file}" "${dest_file}"
+      log_success "  ${filename}"
+      ((FILES_COPIED++)) || true
+    fi
+  done
+}
+
 # -----------------------------------------------------------------------------
 # Validação de pré-requisitos
 # -----------------------------------------------------------------------------
@@ -58,22 +112,13 @@ print_help() {
 validate_prerequisites() {
   log_info "Validando pré-requisitos..."
 
-  # TODO: Verificar se o Kiro CLI está instalado e na versão correta
-  # if ! command -v kiro &>/dev/null; then
-  #   log_error "Kiro CLI não encontrado. Instale via: TODO"
-  #   exit 1
-  # fi
-
-  # Verificar se git está disponível
   if ! command -v git &>/dev/null; then
     log_error "Git não encontrado. Git é obrigatório para o bootstrap."
     exit 1
   fi
 
-  # Verificar se jq está disponível (para manipulação de JSON)
   if ! command -v jq &>/dev/null; then
-    log_warn "jq não encontrado. Algumas funcionalidades podem ser limitadas."
-    log_warn "Instale com: sudo apt-get install jq  |  brew install jq"
+    log_warn "jq não encontrado. O manifest será gerado sem validação JSON."
   fi
 
   log_success "Pré-requisitos validados."
@@ -87,6 +132,7 @@ PROJECT_TYPE=""
 TARGET_DIR=""
 EXTRA_POWERS=""
 DRY_RUN=false
+FORCE=false
 
 parse_args() {
   while [[ $# -gt 0 ]]; do
@@ -95,6 +141,7 @@ parse_args() {
       --target)       TARGET_DIR="$2"; shift 2 ;;
       --powers)       EXTRA_POWERS="$2"; shift 2 ;;
       --dry-run)      DRY_RUN=true; shift ;;
+      --force)        FORCE=true; shift ;;
       --help|-h)      print_help ;;
       *)
         log_error "Argumento desconhecido: $1"
@@ -104,10 +151,9 @@ parse_args() {
     esac
   done
 
-  # Validar argumentos obrigatórios
   if [[ -z "${PROJECT_TYPE}" ]]; then
     log_error "Argumento obrigatório ausente: --project-type"
-    log_error "Tipos disponíveis: backend-nest, frontend-react-next"
+    log_error "Tipos disponíveis: backend-nest, frontend-react"
     exit 1
   fi
 
@@ -116,8 +162,13 @@ parse_args() {
     exit 1
   fi
 
-  # Validar tipo de projeto
-  local valid_types=("backend-nest" "frontend-react-next")
+  # Resolver path absoluto
+  TARGET_DIR="$(cd "${TARGET_DIR}" 2>/dev/null && pwd)" || {
+    log_error "Diretório destino não encontrado: ${TARGET_DIR}"
+    exit 1
+  }
+
+  local valid_types=("backend-nest" "frontend-react")
   local valid=false
   for t in "${valid_types[@]}"; do
     [[ "${PROJECT_TYPE}" == "${t}" ]] && valid=true && break
@@ -129,17 +180,28 @@ parse_args() {
     exit 1
   fi
 
-  # Verificar se o diretório destino existe
-  if [[ ! -d "${TARGET_DIR}" ]]; then
-    log_error "Diretório destino não encontrado: ${TARGET_DIR}"
-    exit 1
-  fi
-
-  # Verificar se o archetype existe
   if [[ ! -d "${REPO_ROOT}/archetypes/${PROJECT_TYPE}" ]]; then
     log_error "Archetype não encontrado: ${PROJECT_TYPE}"
-    log_error "Archetypes disponíveis em: ${REPO_ROOT}/archetypes/"
     exit 1
+  fi
+}
+
+# -----------------------------------------------------------------------------
+# Verificação de bootstrap existente
+# -----------------------------------------------------------------------------
+
+check_existing_bootstrap() {
+  local manifest_path="${TARGET_DIR}/kiro-manifest.json"
+
+  if [[ -f "${manifest_path}" && "${FORCE}" == false ]]; then
+    log_warn "Este projeto já possui um kiro-manifest.json."
+    log_warn "Use --force para sobrescrever ou execute sync.sh para atualizar."
+    echo ""
+    read -r -p "Deseja continuar mesmo assim? [s/N] " response
+    case "${response}" in
+      [sS]) log_info "Continuando..." ;;
+      *)    log_info "Bootstrap cancelado."; exit 0 ;;
+    esac
   fi
 }
 
@@ -150,51 +212,111 @@ parse_args() {
 apply_baseline_global() {
   log_info "Aplicando baseline global (v${BASELINE_VERSION})..."
 
-  if [[ "${DRY_RUN}" == true ]]; then
-    log_warn "[DRY-RUN] Copiaria steering files de: ${REPO_ROOT}/baselines/global/steering/"
-    log_warn "[DRY-RUN] Para: ${TARGET_DIR}/.kiro/steering/"
-    return
+  local src="${REPO_ROOT}/baselines/global/steering"
+  local dest="${TARGET_DIR}/.kiro/steering"
+
+  copy_files "${src}" "${dest}" "*.md"
+
+  if [[ "${DRY_RUN}" == false ]]; then
+    log_success "Baseline global aplicado."
   fi
-
-  # TODO: Implementar cópia dos steering files do baseline global para o projeto destino
-  # mkdir -p "${TARGET_DIR}/.kiro/steering"
-  # cp -r "${REPO_ROOT}/baselines/global/steering/"* "${TARGET_DIR}/.kiro/steering/"
-
-  log_warn "TODO: Implementar cópia do baseline global para o projeto."
-  log_success "Baseline global aplicado (placeholder)."
 }
 
 apply_archetype() {
+  local archetype_dir="${REPO_ROOT}/archetypes/${PROJECT_TYPE}"
+
   log_info "Aplicando archetype: ${PROJECT_TYPE}..."
 
-  if [[ "${DRY_RUN}" == true ]]; then
-    log_warn "[DRY-RUN] Aplicaria archetype de: ${REPO_ROOT}/archetypes/${PROJECT_TYPE}/"
-    log_warn "[DRY-RUN] Para: ${TARGET_DIR}/.kiro/"
-    return
+  # Steering files
+  if [[ -d "${archetype_dir}/steering" ]]; then
+    log_info "  Copiando steering files..."
+    copy_files "${archetype_dir}/steering" "${TARGET_DIR}/.kiro/steering" "*.md"
   fi
 
-  # TODO: Implementar aplicação do archetype no projeto destino
-  # Incluir steering files, hooks, agents e skills do archetype
+  # Skills
+  if [[ -d "${archetype_dir}/skills" ]]; then
+    log_info "  Copiando skills..."
+    copy_files "${archetype_dir}/skills" "${TARGET_DIR}/.kiro/skills" "*.md"
+  fi
 
-  log_warn "TODO: Implementar aplicação do archetype ${PROJECT_TYPE}."
-  log_success "Archetype aplicado (placeholder)."
+  # Hooks
+  if [[ -d "${archetype_dir}/hooks" ]]; then
+    log_info "  Copiando hooks..."
+    copy_files "${archetype_dir}/hooks" "${TARGET_DIR}/.kiro/hooks" "*.json"
+  fi
+
+  # Agents
+  if [[ -d "${archetype_dir}/agents" ]]; then
+    log_info "  Copiando agents..."
+    copy_files "${archetype_dir}/agents" "${TARGET_DIR}/.kiro/agents" "*.md"
+  fi
+
+  if [[ "${DRY_RUN}" == false ]]; then
+    log_success "Archetype ${PROJECT_TYPE} aplicado."
+  fi
 }
 
-install_default_powers() {
-  log_info "Instalando power padrão: mb-kiro-manager..."
+install_powers() {
+  local power_name="mb-${PROJECT_TYPE}"
+  local default_powers=("mb-kiro-manager" "${power_name}")
 
-  if [[ "${DRY_RUN}" == true ]]; then
-    log_warn "[DRY-RUN] Instalaria power: mb-kiro-manager"
-    if [[ -n "${EXTRA_POWERS}" ]]; then
-      log_warn "[DRY-RUN] Powers adicionais: ${EXTRA_POWERS}"
-    fi
-    return
+  # Adicionar powers extras se informados
+  if [[ -n "${EXTRA_POWERS}" ]]; then
+    IFS=',' read -ra extra_array <<< "${EXTRA_POWERS}"
+    for p in "${extra_array[@]}"; do
+      default_powers+=("$(echo "${p}" | tr -d ' ')")
+    done
   fi
 
-  # TODO: Implementar instalação de powers no projeto destino
+  log_info "Instalando powers..."
 
-  log_warn "TODO: Implementar instalação de powers."
-  log_success "Powers instalados (placeholder)."
+  local powers_json="["
+  local first=true
+
+  for power in "${default_powers[@]}"; do
+    local power_dir="${REPO_ROOT}/powers/${power}"
+
+    if [[ ! -d "${power_dir}" ]]; then
+      log_warn "Power não encontrado: ${power} (pulando)"
+      continue
+    fi
+
+    if [[ "${DRY_RUN}" == true ]]; then
+      log_warn "[DRY-RUN] Instalaria power: ${power}"
+      continue
+    fi
+
+    # Copiar steering files do power
+    if [[ -d "${power_dir}/steering" ]]; then
+      local power_steering_dest="${TARGET_DIR}/.kiro/steering/powers/${power}"
+      copy_files "${power_dir}/steering" "${power_steering_dest}" "*.md"
+    fi
+
+    # Copiar mcp.json do power para settings
+    if [[ -f "${power_dir}/mcp.json" ]]; then
+      mkdir -p "${TARGET_DIR}/.kiro/settings"
+      # Merge seria ideal, mas por ora copia como referência
+      cp "${power_dir}/mcp.json" "${TARGET_DIR}/.kiro/settings/${power}-mcp.json"
+      log_success "  ${power} (mcp.json)"
+    fi
+
+    log_success "  Power instalado: ${power}"
+
+    # Construir JSON array para o manifest
+    if [[ "${first}" == true ]]; then
+      first=false
+    else
+      powers_json+=","
+    fi
+    powers_json+="\n    { \"name\": \"${power}\", \"version\": \"0.1.0\", \"installed_at\": \"${TIMESTAMP}\" }"
+  done
+
+  powers_json+="\n  ]"
+  POWERS_JSON="${powers_json}"
+
+  if [[ "${DRY_RUN}" == false ]]; then
+    log_success "Powers instalados."
+  fi
 }
 
 generate_manifest() {
@@ -207,29 +329,44 @@ generate_manifest() {
     return
   fi
 
-  # TODO: Implementar geração real do manifest com jq
-  # Por ora, cria um manifest mínimo de referência
+  local project_name
+  project_name=$(basename "${TARGET_DIR}")
+
   cat > "${manifest_path}" <<EOF
 {
   "_generated_by": "mb-kiro bootstrap.sh",
   "_generated_at": "${TIMESTAMP}",
   "schema_version": "0.1.0",
+  "project": {
+    "name": "${project_name}",
+    "repository": "MonteBravo/${project_name}"
+  },
   "baseline": {
     "version": "${BASELINE_VERSION}",
-    "source": "MonteBravo/mb-kiro"
+    "source": "MonteBravo/mb-kiro",
+    "installed_at": "${TIMESTAMP}",
+    "last_synced_at": "${TIMESTAMP}"
   },
   "archetype": {
     "name": "${PROJECT_TYPE}",
-    "version": "0.1.0"
+    "version": "0.1.0",
+    "installed_at": "${TIMESTAMP}"
   },
-  "powers": [
-    { "name": "mb-kiro-manager", "version": "0.1.0" }
-  ],
+  "powers": $(echo -e "${POWERS_JSON}"),
   "exceptions": []
 }
 EOF
 
-  log_success "kiro-manifest.json gerado em: ${manifest_path}"
+  # Validar JSON se jq estiver disponível
+  if command -v jq &>/dev/null; then
+    if jq '.' "${manifest_path}" > /dev/null 2>&1; then
+      log_success "kiro-manifest.json gerado e validado."
+    else
+      log_warn "kiro-manifest.json gerado mas com possível erro de formatação."
+    fi
+  else
+    log_success "kiro-manifest.json gerado."
+  fi
 }
 
 # -----------------------------------------------------------------------------
@@ -245,16 +382,23 @@ main() {
 
   parse_args "$@"
   validate_prerequisites
+  check_existing_bootstrap
 
   log_info "Projeto tipo:  ${PROJECT_TYPE}"
   log_info "Destino:       ${TARGET_DIR}"
   log_info "Powers extras: ${EXTRA_POWERS:-nenhum}"
   [[ "${DRY_RUN}" == true ]] && log_warn "Modo DRY-RUN ativado — nenhuma mudança será aplicada."
+  [[ "${FORCE}" == true ]] && log_warn "Modo --force ativado — arquivos existentes serão sobrescritos."
   echo ""
 
+  POWERS_JSON="[]"
+
   apply_baseline_global
+  echo ""
   apply_archetype
-  install_default_powers
+  echo ""
+  install_powers
+  echo ""
   generate_manifest
 
   echo ""
@@ -262,11 +406,14 @@ main() {
   if [[ "${DRY_RUN}" == true ]]; then
     log_warn "Bootstrap simulado (dry-run) concluído."
   else
-    log_success "Bootstrap concluído com sucesso!"
+    log_success "Bootstrap concluído!"
+    echo ""
+    log_info "  Arquivos copiados: ${FILES_COPIED}"
+    [[ ${FILES_SKIPPED} -gt 0 ]] && log_warn "  Arquivos pulados:  ${FILES_SKIPPED} (já existiam, use --force para sobrescrever)"
+    echo ""
     log_info "Próximos passos:"
-    log_info "  1. Revise o kiro-manifest.json em: ${TARGET_DIR}/kiro-manifest.json"
-    log_info "  2. Execute o doctor para validar: ./scripts/doctor.sh --target ${TARGET_DIR}"
-    log_info "  3. Leia o onboarding em: docs/onboarding.md"
+    log_info "  1. Abra o projeto no Kiro para validar"
+    log_info "  2. Execute: ./scripts/doctor.sh --target ${TARGET_DIR}"
   fi
   echo "============================================"
   echo ""

@@ -54,7 +54,7 @@ O `mb-monorepo-nx` é o power de capacidades Kiro para projetos organizados como
 > TODO: Listar dependências deste power.
 
 - Requer Nx na versão TODO ou superior.
-- Compatível com monorepos que contêm archetypes `backend-nest` e/ou `frontend-react-next`.
+- Compatível com monorepos que contêm archetypes `backend-nest` e/ou `frontend-react`.
 
 ---
 

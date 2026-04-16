@@ -1,0 +1,13 @@
+{
+  "name": "Type Check on Save",
+  "version": "1.0.0",
+  "description": "Executa verificação de tipos TypeScript ao salvar arquivos. Usa Turborepo para rodar apenas no package afetado quando disponível.",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["*.ts", "*.tsx"]
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "npx turbo run typecheck --filter='...[HEAD]' 2>/dev/null || npx tsc --noEmit --pretty"
+  }
+}

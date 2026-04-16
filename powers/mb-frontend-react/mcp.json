@@ -1,7 +1,7 @@
 {
-  "_comment": "Configuração MCP do power mb-frontend-react-next. Preencher com servidores e ferramentas reais quando disponíveis.",
+  "_comment": "Configuração MCP do power mb-frontend-react. Preencher com servidores e ferramentas reais quando disponíveis.",
   "version": "0.1.0",
-  "power": "mb-frontend-react-next",
+  "power": "mb-frontend-react",
   "mcpServers": {
     "_placeholder": {
       "_comment": "TODO: Adicionar servidores MCP reais aqui quando disponíveis."

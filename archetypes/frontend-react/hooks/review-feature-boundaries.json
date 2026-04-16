@@ -1,0 +1,13 @@
+{
+  "name": "Revisar Fronteiras de Módulo",
+  "version": "1.1.0",
+  "description": "Verifica se imports entre módulos respeitam as fronteiras arquiteturais: módulos não devem depender de implementações internas de outros módulos.",
+  "when": {
+    "type": "preToolUse",
+    "toolTypes": ["write"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Antes de escrever este arquivo, verifique se os imports respeitam as fronteiras arquiteturais do projeto. APENAS verifique se o arquivo está dentro de src/modules/. Se não estiver, prossiga normalmente sem comentários.\n\nRegras para arquivos dentro de modules/:\n1. Código dentro de modules/{module-a}/ NÃO deve importar de modules/{module-b}/ diretamente — integrações entre módulos devem ocorrer por contratos explícitos\n2. Imports profundos entre módulos são proibidos — consumir via API pública (index.ts) do módulo\n3. Dentro de um módulo, imports seguem FSD: layers só importam de layers estritamente abaixo\n4. Slices da mesma layer não devem depender umas das outras\n5. Código compartilhado entre módulos deve estar em src/shared/ ou packages/*\n\nSe houver violação de fronteira, sugira a correção. Se não houver violação ou o arquivo não estiver em modules/, prossiga normalmente sem comentários."
+  }
+}

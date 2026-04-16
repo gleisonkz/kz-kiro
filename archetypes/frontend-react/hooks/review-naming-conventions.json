@@ -1,0 +1,13 @@
+{
+  "name": "Revisar Convenções de Nomenclatura",
+  "version": "1.0.0",
+  "description": "Revisa se arquivos criados seguem as convenções de nomenclatura MonteBravo (kebab-case para módulos, PascalCase para componentes, sufixos corretos).",
+  "when": {
+    "type": "fileCreated",
+    "patterns": ["*.ts", "*.tsx"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Verifique se o arquivo recém-criado segue as convenções de nomenclatura do projeto:\n\n1. Componentes React devem usar PascalCase (ex.: Button.tsx, PortfolioCard.tsx)\n2. Módulos funcionais devem usar kebab-case (ex.: format-currency.ts, auth.api.ts)\n3. Sufixos corretos: .test.ts/.test.tsx para testes, .stories.tsx para stories, .api.ts para API, .slice.ts para slices, .selectors.ts para selectors, .hook.ts para hooks, .context.tsx para contexts, .provider.tsx para providers, .page.tsx para páginas, .types.ts para tipos, .schema.ts para schemas, .mapper.ts para mappers\n4. Hooks devem ter prefixo 'use' em camelCase\n5. Diretórios devem usar kebab-case\n\nSe o nome não seguir as convenções, sugira a correção. Se estiver correto, não diga nada."
+  }
+}

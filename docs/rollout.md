@@ -36,7 +36,7 @@ Fase 0: Fundação → Fase 1: Piloto → Fase 2: Expansão → Fase 3: Consolid
 
 - Criar e validar a estrutura base do repositório `mb-kiro`.
 - Definir o baseline global inicial (versão 0.1.0).
-- Criar archetypes iniciais para backend-nest e frontend-react-next.
+- Criar archetypes iniciais para backend-nest e frontend-react.
 - Criar scripts bootstrap, sync e doctor com estrutura funcional mínima.
 - Documentar onboarding, governança e arquitetura.
 

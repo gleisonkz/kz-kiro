@@ -1,0 +1,12 @@
+{
+  "name": "Executar Testes Após Task",
+  "version": "1.0.0",
+  "description": "Executa os testes relacionados automaticamente após a conclusão de uma task de spec, garantindo que as mudanças não quebraram nada.",
+  "when": {
+    "type": "postTaskExecution"
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "npx vitest --run --reporter=verbose"
+  }
+}

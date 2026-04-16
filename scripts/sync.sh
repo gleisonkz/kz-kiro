@@ -10,7 +10,7 @@
 #
 # Opções:
 #   --target <caminho>      Caminho para o diretório do projeto destino
-#   --component <nome>      Sincronizar apenas um componente: baseline | archetype | powers | all (padrão: all)
+#   --component <nome>      Sincronizar apenas: baseline | archetype | powers | all (padrão: all)
 #   --dry-run               Simula a execução sem aplicar mudanças
 #   --help                  Exibe esta mensagem de ajuda
 #
@@ -36,6 +36,11 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
+# Contadores
+FILES_UPDATED=0
+FILES_ADDED=0
+FILES_UNCHANGED=0
+
 # -----------------------------------------------------------------------------
 # Funções de utilidade
 # -----------------------------------------------------------------------------
@@ -50,23 +55,54 @@ print_help() {
   exit 0
 }
 
-# -----------------------------------------------------------------------------
-# Validação de pré-requisitos
-# -----------------------------------------------------------------------------
+# Sincroniza arquivos: copia novos e atualiza os que mudaram.
+sync_files() {
+  local src_dir="$1"
+  local dest_dir="$2"
+  local file_pattern="${3:-*}"
 
-validate_prerequisites() {
-  log_info "Validando pré-requisitos..."
-
-  if ! command -v git &>/dev/null; then
-    log_error "Git não encontrado."
-    exit 1
+  if [[ ! -d "${src_dir}" ]]; then
+    return
   fi
 
-  if ! command -v jq &>/dev/null; then
-    log_warn "jq não encontrado. Leitura do manifest será limitada."
+  local file_count
+  file_count=$(find "${src_dir}" -maxdepth 1 -name "${file_pattern}" -not -name "README.md" -type f 2>/dev/null | wc -l | tr -d ' ')
+
+  if [[ "${file_count}" -eq 0 ]]; then
+    return
   fi
 
-  log_success "Pré-requisitos validados."
+  mkdir -p "${dest_dir}"
+
+  for file in "${src_dir}"/${file_pattern}; do
+    [[ ! -f "${file}" ]] && continue
+    local filename
+    filename=$(basename "${file}")
+    [[ "${filename}" == "README.md" ]] && continue
+
+    local dest_file="${dest_dir}/${filename}"
+
+    if [[ "${DRY_RUN}" == true ]]; then
+      if [[ ! -f "${dest_file}" ]]; then
+        log_warn "[DRY-RUN] Adicionaria: ${filename}"
+      elif ! diff -q "${file}" "${dest_file}" > /dev/null 2>&1; then
+        log_warn "[DRY-RUN] Atualizaria: ${filename}"
+      fi
+      continue
+    fi
+
+    if [[ ! -f "${dest_file}" ]]; then
+      cp "${file}" "${dest_file}"
+      log_success "  + ${filename} (novo)"
+      ((FILES_ADDED++)) || true
+    elif ! diff -q "${file}" "${dest_file}" > /dev/null 2>&1; then
+      cp "${file}" "${dest_file}"
+      log_success "  ~ ${filename} (atualizado)"
+      ((FILES_UPDATED++)) || true
+    else
+      ((FILES_UNCHANGED++)) || true
+    fi
+  done
 }
 
 # -----------------------------------------------------------------------------
@@ -96,10 +132,10 @@ parse_args() {
     exit 1
   fi
 
-  if [[ ! -d "${TARGET_DIR}" ]]; then
+  TARGET_DIR="$(cd "${TARGET_DIR}" 2>/dev/null && pwd)" || {
     log_error "Diretório destino não encontrado: ${TARGET_DIR}"
     exit 1
-  fi
+  }
 
   local valid_components=("all" "baseline" "archetype" "powers")
   local valid=false
@@ -118,6 +154,8 @@ parse_args() {
 # Leitura do manifest
 # -----------------------------------------------------------------------------
 
+MANIFEST_ARCHETYPE=""
+
 read_manifest() {
   local manifest_path="${TARGET_DIR}/kiro-manifest.json"
 
@@ -129,12 +167,25 @@ read_manifest() {
 
   log_info "Manifest encontrado: ${manifest_path}"
 
-  # TODO: Usar jq para extrair versões e componentes do manifest
-  # INSTALLED_BASELINE=$(jq -r '.baseline.version' "${manifest_path}")
-  # INSTALLED_ARCHETYPE=$(jq -r '.archetype.name' "${manifest_path}")
-  # INSTALLED_ARCHETYPE_VERSION=$(jq -r '.archetype.version' "${manifest_path}")
+  if command -v jq &>/dev/null; then
+    MANIFEST_ARCHETYPE=$(jq -r '.archetype.name // empty' "${manifest_path}" 2>/dev/null)
+    local manifest_baseline
+    manifest_baseline=$(jq -r '.baseline.version // empty' "${manifest_path}" 2>/dev/null)
 
-  log_warn "TODO: Implementar leitura estruturada do manifest via jq."
+    log_info "  Archetype: ${MANIFEST_ARCHETYPE:-desconhecido}"
+    log_info "  Baseline:  ${manifest_baseline:-desconhecido}"
+  else
+    # Fallback sem jq: tentar extrair com grep
+    MANIFEST_ARCHETYPE=$(grep -o '"name": *"[^"]*"' "${manifest_path}" | head -1 | sed 's/.*: *"\(.*\)"/\1/')
+    log_warn "jq não disponível — leitura do manifest limitada."
+    log_info "  Archetype (estimado): ${MANIFEST_ARCHETYPE:-desconhecido}"
+  fi
+
+  if [[ -z "${MANIFEST_ARCHETYPE}" ]]; then
+    log_error "Não foi possível determinar o archetype do projeto."
+    log_error "Verifique o kiro-manifest.json."
+    exit 1
+  fi
 }
 
 # -----------------------------------------------------------------------------
@@ -144,65 +195,107 @@ read_manifest() {
 sync_baseline() {
   log_info "Sincronizando baseline global..."
 
-  if [[ "${DRY_RUN}" == true ]]; then
-    log_warn "[DRY-RUN] Verificaria versão instalada vs. disponível do baseline global."
-    log_warn "[DRY-RUN] Atualizaria steering files se necessário."
-    return
+  local src="${REPO_ROOT}/baselines/global/steering"
+  local dest="${TARGET_DIR}/.kiro/steering"
+
+  sync_files "${src}" "${dest}" "*.md"
+
+  if [[ "${DRY_RUN}" == false ]]; then
+    log_success "Baseline sincronizado."
   fi
-
-  # TODO: Implementar lógica de comparação de versões e atualização do baseline
-  # 1. Ler versão instalada do manifest
-  # 2. Comparar com versão disponível neste repositório
-  # 3. Se diferente, copiar novos steering files e atualizar manifest
-
-  log_warn "TODO: Implementar sincronização do baseline global."
-  log_success "Baseline sincronizado (placeholder)."
 }
 
 sync_archetype() {
-  log_info "Sincronizando archetype..."
+  local archetype_dir="${REPO_ROOT}/archetypes/${MANIFEST_ARCHETYPE}"
 
-  if [[ "${DRY_RUN}" == true ]]; then
-    log_warn "[DRY-RUN] Verificaria versão instalada vs. disponível do archetype."
+  if [[ ! -d "${archetype_dir}" ]]; then
+    log_error "Archetype não encontrado: ${MANIFEST_ARCHETYPE}"
     return
   fi
 
-  # TODO: Implementar lógica de sincronização do archetype
-  # Atenção: mudanças no archetype podem sobrescrever customizações locais.
-  # Implementar modo de merge com preservação de customizações.
+  log_info "Sincronizando archetype: ${MANIFEST_ARCHETYPE}..."
 
-  log_warn "TODO: Implementar sincronização do archetype."
-  log_success "Archetype sincronizado (placeholder)."
+  # Steering
+  if [[ -d "${archetype_dir}/steering" ]]; then
+    log_info "  Steering files..."
+    sync_files "${archetype_dir}/steering" "${TARGET_DIR}/.kiro/steering" "*.md"
+  fi
+
+  # Skills
+  if [[ -d "${archetype_dir}/skills" ]]; then
+    log_info "  Skills..."
+    sync_files "${archetype_dir}/skills" "${TARGET_DIR}/.kiro/skills" "*.md"
+  fi
+
+  # Hooks
+  if [[ -d "${archetype_dir}/hooks" ]]; then
+    log_info "  Hooks..."
+    sync_files "${archetype_dir}/hooks" "${TARGET_DIR}/.kiro/hooks" "*.json"
+  fi
+
+  # Agents
+  if [[ -d "${archetype_dir}/agents" ]]; then
+    log_info "  Agents..."
+    sync_files "${archetype_dir}/agents" "${TARGET_DIR}/.kiro/agents" "*.md"
+  fi
+
+  if [[ "${DRY_RUN}" == false ]]; then
+    log_success "Archetype sincronizado."
+  fi
 }
 
 sync_powers() {
   log_info "Sincronizando powers..."
 
-  if [[ "${DRY_RUN}" == true ]]; then
-    log_warn "[DRY-RUN] Verificaria versões instaladas de todos os powers."
+  local manifest_path="${TARGET_DIR}/kiro-manifest.json"
+
+  if ! command -v jq &>/dev/null; then
+    log_warn "jq necessário para sincronizar powers. Pulando."
     return
   fi
 
-  # TODO: Implementar lógica de sincronização de powers
-  # Iterar sobre os powers declarados no manifest e atualizar cada um.
+  local power_names
+  power_names=$(jq -r '.powers[]?.name // empty' "${manifest_path}" 2>/dev/null)
 
-  log_warn "TODO: Implementar sincronização de powers."
-  log_success "Powers sincronizados (placeholder)."
+  if [[ -z "${power_names}" ]]; then
+    log_info "Nenhum power declarado no manifest."
+    return
+  fi
+
+  while IFS= read -r power; do
+    local power_dir="${REPO_ROOT}/powers/${power}"
+
+    if [[ ! -d "${power_dir}" ]]; then
+      log_warn "Power não encontrado no repositório: ${power}"
+      continue
+    fi
+
+    log_info "  Power: ${power}"
+
+    if [[ -d "${power_dir}/steering" ]]; then
+      sync_files "${power_dir}/steering" "${TARGET_DIR}/.kiro/steering/powers/${power}" "*.md"
+    fi
+  done <<< "${power_names}"
+
+  if [[ "${DRY_RUN}" == false ]]; then
+    log_success "Powers sincronizados."
+  fi
 }
 
-update_manifest_after_sync() {
-  log_info "Atualizando kiro-manifest.json com data de sincronização..."
-
+update_manifest_sync_date() {
   if [[ "${DRY_RUN}" == true ]]; then
-    log_warn "[DRY-RUN] Atualizaria o campo last_synced_at no manifest."
     return
   fi
 
-  # TODO: Implementar atualização do manifest com jq
-  # jq --arg ts "${TIMESTAMP}" '.last_synced_at = $ts' manifest.json > tmp && mv tmp manifest.json
+  local manifest_path="${TARGET_DIR}/kiro-manifest.json"
 
-  log_warn "TODO: Implementar atualização do manifest após sync."
-  log_success "Manifest atualizado (placeholder)."
+  if command -v jq &>/dev/null; then
+    local tmp
+    tmp=$(mktemp)
+    jq --arg ts "${TIMESTAMP}" '.baseline.last_synced_at = $ts' "${manifest_path}" > "${tmp}"
+    mv "${tmp}" "${manifest_path}"
+    log_success "Manifest atualizado com data de sincronização."
+  fi
 }
 
 # -----------------------------------------------------------------------------
@@ -217,7 +310,6 @@ main() {
   echo ""
 
   parse_args "$@"
-  validate_prerequisites
   read_manifest
 
   log_info "Destino:    ${TARGET_DIR}"
@@ -228,7 +320,9 @@ main() {
   case "${COMPONENT}" in
     all)
       sync_baseline
+      echo ""
       sync_archetype
+      echo ""
       sync_powers
       ;;
     baseline)  sync_baseline ;;
@@ -236,15 +330,21 @@ main() {
     powers)    sync_powers ;;
   esac
 
-  update_manifest_after_sync
+  echo ""
+  update_manifest_sync_date
 
   echo ""
   echo "============================================"
   if [[ "${DRY_RUN}" == true ]]; then
     log_warn "Sincronização simulada (dry-run) concluída."
   else
-    log_success "Sincronização concluída com sucesso!"
-    log_info "Execute o doctor para validar: ./scripts/doctor.sh --target ${TARGET_DIR}"
+    log_success "Sincronização concluída!"
+    echo ""
+    log_info "  Novos:        ${FILES_ADDED}"
+    log_info "  Atualizados:  ${FILES_UPDATED}"
+    log_info "  Sem mudança:  ${FILES_UNCHANGED}"
+    echo ""
+    log_info "Execute: ./scripts/doctor.sh --target ${TARGET_DIR}"
   fi
   echo "============================================"
   echo ""

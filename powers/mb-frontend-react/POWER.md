@@ -1,10 +1,10 @@
-# mb-frontend-react-next
+# mb-frontend-react
 
-> **Power | mb-frontend-react-next | Versão: 0.1.0**
+> **Power | mb-frontend-react | Versão: 0.1.0**
 
 ## Visão Geral
 
-O `mb-frontend-react-next` é o power de capacidades Kiro para projetos frontend construídos com React e Next.js na MonteBravo. Ele provê agents, skills e steering files especializados para acelerar o desenvolvimento e manter a qualidade em projetos React/Next.js.
+O `mb-frontend-react` é o power de capacidades Kiro para projetos frontend construídos com React e Next.js na MonteBravo. Ele provê agents, skills e steering files especializados para acelerar o desenvolvimento e manter a qualidade em projetos React/Next.js.
 
 ---
 
@@ -24,10 +24,10 @@ O `mb-frontend-react-next` é o power de capacidades Kiro para projetos frontend
 ```bash
 # TODO: Adicionar o comando de instalação via Kiro quando disponível
 # Exemplo hipotético:
-# kiro power install mb-frontend-react-next
+# kiro power install mb-frontend-react
 ```
 
-> **Nota:** Este power já é instalado automaticamente quando o archetype `frontend-react-next` é aplicado via `bootstrap.sh`.
+> **Nota:** Este power já é instalado automaticamente quando o archetype `frontend-react` é aplicado via `bootstrap.sh`.
 
 ---
 
@@ -56,7 +56,7 @@ O `mb-frontend-react-next` é o power de capacidades Kiro para projetos frontend
 
 > TODO: Listar dependências deste power.
 
-- Requer archetype `frontend-react-next` ou configuração React/Next.js equivalente.
+- Requer archetype `frontend-react` ou configuração React/Next.js equivalente.
 
 ---
 

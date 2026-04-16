@@ -1,0 +1,13 @@
+{
+  "name": "Lint on Save",
+  "version": "1.0.0",
+  "description": "Executa ESLint automaticamente ao salvar arquivos TypeScript/React para garantir conformidade com os padrões de código.",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["*.ts", "*.tsx"]
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "npx eslint --fix --no-warn-ignored ${file}"
+  }
+}

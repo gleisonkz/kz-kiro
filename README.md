@@ -25,11 +25,11 @@ mb-kiro/
 │       └── steering/   # Arquivos .md de steering que o Kiro lê como contexto de projeto
 ├── archetypes/         # Templates de configuração Kiro por tipo de projeto
 │   ├── backend-nest/
-│   └── frontend-react-next/
+│   └── frontend-react/
 ├── powers/             # Powers reutilizáveis empacotados para instalação via Kiro
 │   ├── mb-kiro-manager/
 │   ├── mb-backend-nest/
-│   ├── mb-frontend-react-next/
+│   ├── mb-frontend-react/
 │   └── mb-monorepo-nx/
 ├── scripts/            # Ferramentas de linha de comando para bootstrap, sync e doctor
 ├── examples/           # Exemplos de manifesto e estrutura de projeto
@@ -100,7 +100,7 @@ Mudanças **breaking** incrementam o `MAJOR`. Novas funcionalidades compatíveis
 ## Próximos Passos
 
 - [ ] Preencher conteúdo dos steering files no baseline global
-- [ ] Definir conteúdo completo dos archetypes backend-nest e frontend-react-next
+- [ ] Definir conteúdo completo dos archetypes backend-nest e frontend-react
 - [ ] Implementar scripts bootstrap.sh, sync.sh e doctor.sh
 - [ ] Publicar powers via Kiro Registry (quando disponível)
 - [ ] Definir processo de aprovação para mudanças no baseline global

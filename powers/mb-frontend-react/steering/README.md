@@ -1,8 +1,8 @@
-# Steering — Power mb-frontend-react-next
+# Steering — Power mb-frontend-react
 
-> **Steering File | Power: mb-frontend-react-next | Versão: 0.1.0**
+> **Steering File | Power: mb-frontend-react | Versão: 0.1.0**
 >
-> Este diretório conterá os steering files específicos do power mb-frontend-react-next.
+> Este diretório conterá os steering files específicos do power mb-frontend-react.
 
 ---
 
