@@ -11,10 +11,12 @@
 # Opções:
 #   --target <caminho>      Caminho para o diretório do projeto a diagnosticar
 #   --output <formato>      Formato do relatório: text (padrão) | json
+#   --verbose               Exibe detalhes adicionais nos warnings (diffs, listas de arquivos)
 #   --help                  Exibe esta mensagem de ajuda
 #
 # Exemplos:
 #   ./scripts/doctor.sh --target ../meu-projeto
+#   ./scripts/doctor.sh --target ../meu-projeto --verbose
 #   ./scripts/doctor.sh --target ../meu-projeto --output json
 # =============================================================================
 
@@ -42,6 +44,7 @@ NC='\033[0m'
 # JSON output
 JSON_RESULTS="[]"
 OUTPUT_FORMAT="text"
+VERBOSE=false
 
 # -----------------------------------------------------------------------------
 # Funções de utilidade
@@ -52,6 +55,7 @@ log_pass()    { ((CHECKS_PASSED++)) || true; [[ "${OUTPUT_FORMAT}" == "text" ]] 
 log_warn()    { ((CHECKS_WARNED++)) || true; [[ "${OUTPUT_FORMAT}" == "text" ]] && echo -e "${YELLOW}[WARN]${NC}  $*"; return 0; }
 log_fail()    { ((CHECKS_FAILED++)) || true; [[ "${OUTPUT_FORMAT}" == "text" ]] && echo -e "${RED}[FAIL]${NC}  $*"; return 0; }
 log_error()   { echo -e "${RED}[ERROR]${NC} $*" >&2; }
+log_detail()  { [[ "${VERBOSE}" == true && "${OUTPUT_FORMAT}" == "text" ]] && echo -e "          $*"; return 0; }
 
 print_help() {
   grep '^#' "${BASH_SOURCE[0]}" | grep -v '#!/' | sed 's/^# \{0,1\}//'
@@ -62,9 +66,15 @@ add_json_result() {
   local status="$1"
   local category="$2"
   local message="$3"
+  local details="${4:-}"
   if command -v jq &>/dev/null; then
-    JSON_RESULTS=$(echo "${JSON_RESULTS}" | jq --arg s "${status}" --arg c "${category}" --arg m "${message}" \
-      '. + [{"status": $s, "category": $c, "message": $m}]')
+    if [[ -n "${details}" && "${VERBOSE}" == true ]]; then
+      JSON_RESULTS=$(echo "${JSON_RESULTS}" | jq --arg s "${status}" --arg c "${category}" --arg m "${message}" --arg d "${details}" \
+        '. + [{"status": $s, "category": $c, "message": $m, "details": $d}]')
+    else
+      JSON_RESULTS=$(echo "${JSON_RESULTS}" | jq --arg s "${status}" --arg c "${category}" --arg m "${message}" \
+        '. + [{"status": $s, "category": $c, "message": $m}]')
+    fi
   fi
 }
 
@@ -79,6 +89,7 @@ parse_args() {
     case "$1" in
       --target)  TARGET_DIR="$2"; shift 2 ;;
       --output)  OUTPUT_FORMAT="$2"; shift 2 ;;
+      --verbose) VERBOSE=true; shift ;;
       --help|-h) print_help ;;
       *)
         log_error "Argumento desconhecido: $1"
@@ -187,7 +198,15 @@ check_baseline() {
             add_json_result "pass" "baseline" "Atualizado: ${f}"
           else
             log_warn "Desatualizado: ${f} (difere da versão no mb-kiro)"
-            add_json_result "warn" "baseline" "Desatualizado: ${f}"
+            local diff_output
+            diff_output=$(diff --unified=3 "${baseline_dir}/${f}" "${kiro_steering_dir}/${f}" 2>/dev/null || true)
+            add_json_result "warn" "baseline" "Desatualizado: ${f}" "${diff_output}"
+            if [[ "${VERBOSE}" == true ]]; then
+              log_detail "Diferenças em ${f}:"
+              diff --unified=3 "${baseline_dir}/${f}" "${kiro_steering_dir}/${f}" 2>/dev/null | while IFS= read -r line; do
+                log_detail "  ${line}"
+              done
+            fi
           fi
         else
           log_pass "Presente: ${f}"
@@ -261,7 +280,25 @@ check_archetype() {
         add_json_result "pass" "archetype" "${dir_name}: ${dest_count}/${src_count}"
       else
         log_warn "${dir_name}: ${dest_count}/${src_count} arquivos (faltam $(( src_count - dest_count )))"
-        add_json_result "warn" "archetype" "${dir_name}: ${dest_count}/${src_count} (incompleto)"
+        local missing_files=""
+        for src_file in "${src_dir}"/${pattern}; do
+          [[ ! -f "${src_file}" ]] && continue
+          local src_fname
+          src_fname=$(basename "${src_file}")
+          [[ "${src_fname}" == "README.md" ]] && continue
+          if [[ ! -f "${dest_dir}/${src_fname}" ]]; then
+            missing_files="${missing_files}${src_fname}, "
+          fi
+        done
+        missing_files="${missing_files%, }"
+        add_json_result "warn" "archetype" "${dir_name}: ${dest_count}/${src_count} (incompleto)" "Ausentes: ${missing_files}"
+        if [[ "${VERBOSE}" == true ]]; then
+          log_detail "Arquivos ausentes em .kiro/${dir_name}/:"
+          IFS=', ' read -ra missing_arr <<< "${missing_files}"
+          for mf in "${missing_arr[@]}"; do
+            [[ -n "${mf}" ]] && log_detail "  - ${mf}"
+          done
+        fi
       fi
     else
       log_fail "${dir_name}: diretório .kiro/${dir_name}/ não encontrado"
@@ -307,6 +344,19 @@ check_powers() {
     else
       log_warn "Power declarado mas não encontrado no mb-kiro: ${power}"
       add_json_result "warn" "powers" "Power não encontrado: ${power}"
+      if [[ "${VERBOSE}" == true ]]; then
+        log_detail "O power '${power}' está declarado no manifest mas não existe em powers/${power}/"
+        log_detail "Verifique se o nome está correto ou se o power foi removido do repositório."
+        # Listar powers disponíveis como sugestão
+        local available_powers
+        available_powers=$(find "${REPO_ROOT}/powers" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; 2>/dev/null | sort)
+        if [[ -n "${available_powers}" ]]; then
+          log_detail "Powers disponíveis no mb-kiro:"
+          while IFS= read -r p; do
+            log_detail "  - ${p}"
+          done <<< "${available_powers}"
+        fi
+      fi
     fi
   done <<< "${power_names}"
 }
@@ -374,6 +424,54 @@ check_general_health() {
         else
           log_warn "mcp.json difere do baseline (pode ter customizações locais)."
           add_json_result "warn" "health" "mcp.json difere do baseline"
+          if [[ "${VERBOSE}" == true ]]; then
+            # Mostrar servers que existem no baseline mas faltam no projeto
+            local missing_servers
+            missing_servers=$(jq -r --slurpfile proj "${mcp_path}" \
+              '.mcpServers | keys[] | select(. as $k | $proj[0].mcpServers[$k] == null)' \
+              "${mcp_baseline}" 2>/dev/null)
+            if [[ -n "${missing_servers}" ]]; then
+              log_detail "Servers do baseline ausentes no projeto:"
+              while IFS= read -r srv; do
+                log_detail "  - ${srv}"
+              done <<< "${missing_servers}"
+            fi
+
+            # Mostrar servers que existem no projeto mas não no baseline
+            local extra_servers
+            extra_servers=$(jq -r --slurpfile base "${mcp_baseline}" \
+              '.mcpServers | keys[] | select(. as $k | $base[0].mcpServers[$k] == null)' \
+              "${mcp_path}" 2>/dev/null)
+            if [[ -n "${extra_servers}" ]]; then
+              log_detail "Servers adicionais no projeto (não estão no baseline):"
+              while IFS= read -r srv; do
+                log_detail "  - ${srv}"
+              done <<< "${extra_servers}"
+            fi
+
+            # Mostrar servers que existem em ambos mas com config diferente
+            local common_servers
+            common_servers=$(jq -r --slurpfile proj "${mcp_path}" \
+              '.mcpServers | keys[] | select(. as $k | $proj[0].mcpServers[$k] != null)' \
+              "${mcp_baseline}" 2>/dev/null)
+            if [[ -n "${common_servers}" ]]; then
+              local modified_list=""
+              while IFS= read -r srv; do
+                local base_cfg proj_cfg
+                base_cfg=$(jq -c ".mcpServers[\"${srv}\"]" "${mcp_baseline}" 2>/dev/null)
+                proj_cfg=$(jq -c ".mcpServers[\"${srv}\"]" "${mcp_path}" 2>/dev/null)
+                if [[ "${base_cfg}" != "${proj_cfg}" ]]; then
+                  modified_list="${modified_list}  - ${srv}\n"
+                fi
+              done <<< "${common_servers}"
+              if [[ -n "${modified_list}" ]]; then
+                log_detail "Servers com configuração modificada:"
+                echo -e "${modified_list}" | while IFS= read -r line; do
+                  [[ -n "${line}" ]] && log_detail "${line}"
+                done
+              fi
+            fi
+          fi
         fi
       fi
     fi
@@ -409,6 +507,9 @@ print_summary() {
   elif [[ ${CHECKS_WARNED} -gt 0 ]]; then
     echo ""
     log_warn "${CHECKS_WARNED} item(ns) requerem atenção."
+    if [[ "${VERBOSE}" == false ]]; then
+      log_info "Use --verbose para ver detalhes dos warnings."
+    fi
     echo ""
     exit 0
   else
