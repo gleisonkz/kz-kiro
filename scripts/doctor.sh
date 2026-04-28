@@ -353,6 +353,34 @@ check_general_health() {
     log_fail "Diretório .kiro/ não encontrado. Execute bootstrap.sh."
     add_json_result "fail" "health" ".kiro/ ausente"
   fi
+
+  # MCP config
+  local mcp_path="${TARGET_DIR}/.kiro/settings/mcp.json"
+  if [[ -f "${mcp_path}" ]]; then
+    log_pass "mcp.json presente."
+    add_json_result "pass" "health" "mcp.json presente"
+
+    if command -v jq &>/dev/null; then
+      local server_count
+      server_count=$(jq -r '.mcpServers | keys | length' "${mcp_path}" 2>/dev/null)
+      log_info "  MCP servers configurados: ${server_count:-0}"
+
+      # Verificar se está atualizado com o baseline
+      local mcp_baseline="${REPO_ROOT}/baselines/global/mcp/mcp.json"
+      if [[ -f "${mcp_baseline}" ]]; then
+        if diff -q "${mcp_baseline}" "${mcp_path}" > /dev/null 2>&1; then
+          log_pass "mcp.json atualizado com baseline."
+          add_json_result "pass" "health" "mcp.json atualizado"
+        else
+          log_warn "mcp.json difere do baseline (pode ter customizações locais)."
+          add_json_result "warn" "health" "mcp.json difere do baseline"
+        fi
+      fi
+    fi
+  else
+    log_warn "mcp.json ausente em .kiro/settings/. MCPs homologados não configurados."
+    add_json_result "warn" "health" "mcp.json ausente"
+  fi
 }
 
 # -----------------------------------------------------------------------------

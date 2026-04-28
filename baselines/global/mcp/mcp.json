@@ -1,0 +1,34 @@
+{
+  "_comment": "MCPs homologados pela MonteBravo (baseline global). Copiado para .kiro/settings/mcp.json via bootstrap. MCPs específicos de stack ficam no archetype.",
+  "_version": "0.1.0",
+  "mcpServers": {
+    "atlassian": {
+      "_comment": "Atlassian Rovo MCP — Jira, Confluence e Compass. Autenticação via OAuth no primeiro uso.",
+      "url": "https://mcp.atlassian.com/v1/mcp",
+      "disabled": false,
+      "autoApprove": []
+    },
+    "github": {
+      "_comment": "GitHub MCP Server oficial — PRs, issues, code search, repos.",
+      "command": "npx",
+      "args": ["-y", "@anthropic-ai/github-mcp-server@latest"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
+      },
+      "disabled": false,
+      "autoApprove": []
+    },
+    "context7": {
+      "_comment": "Context7 — Documentação atualizada de bibliotecas direto no prompt.",
+      "url": "https://mcp.context7.com/mcp",
+      "disabled": false,
+      "autoApprove": []
+    },
+    "datadog": {
+      "_comment": "Datadog MCP Server — Logs, métricas, traces, dashboards, monitors. Autenticação via OAuth.",
+      "url": "https://mcp.datadoghq.com?toolsets=core",
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}

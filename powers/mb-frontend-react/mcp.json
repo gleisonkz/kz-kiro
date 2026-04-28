@@ -1,23 +1,5 @@
 {
-  "_comment": "Configuração MCP do power mb-frontend-react. Preencher com servidores e ferramentas reais quando disponíveis.",
-  "version": "0.1.0",
-  "power": "mb-frontend-react",
-  "mcpServers": {
-    "_placeholder": {
-      "_comment": "TODO: Adicionar servidores MCP reais aqui quando disponíveis."
-    }
-  },
-  "tools": {
-    "_comment": "TODO: Definir as ferramentas React/Next.js-específicas expostas por este power via MCP.",
-    "_placeholder_tools": [
-      "react:generate-component",
-      "react:generate-page",
-      "react:generate-hook",
-      "react:analyze-bundle",
-      "react:review-accessibility"
-    ]
-  },
-  "resources": {
-    "_comment": "TODO: Definir os recursos acessíveis por este power."
-  }
+  "_comment": "Power mb-frontend-react não adiciona MCPs extras. MCPs de frontend (Chrome DevTools, Figma) ficam no archetype.",
+  "_version": "0.1.0",
+  "mcpServers": {}
 }

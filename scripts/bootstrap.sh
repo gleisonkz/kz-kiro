@@ -217,6 +217,38 @@ apply_baseline_global() {
 
   copy_files "${src}" "${dest}" "*.md"
 
+  # Copiar mcp.json homologado (baseline + archetype mergeados)
+  local mcp_baseline="${REPO_ROOT}/baselines/global/mcp/mcp.json"
+  local mcp_archetype="${REPO_ROOT}/archetypes/${PROJECT_TYPE}/mcp/mcp.json"
+  local mcp_dest="${TARGET_DIR}/.kiro/settings/mcp.json"
+
+  if [[ "${DRY_RUN}" == true ]]; then
+    log_warn "[DRY-RUN] Geraria mcp.json mergeado (baseline + archetype) em ${mcp_dest}"
+  else
+    mkdir -p "${TARGET_DIR}/.kiro/settings"
+    if [[ -f "${mcp_dest}" && "${FORCE}" == false ]]; then
+      log_warn "mcp.json já existe (pulando). Use --force para sobrescrever."
+      ((FILES_SKIPPED++)) || true
+    else
+      if command -v jq &>/dev/null && [[ -f "${mcp_baseline}" && -f "${mcp_archetype}" ]]; then
+        # Merge: baseline + archetype (archetype sobrescreve em caso de conflito)
+        jq -s '
+          {
+            "_comment": "MCPs homologados MonteBravo (baseline global + archetype '"${PROJECT_TYPE}"'). Gerado por bootstrap.sh.",
+            "_version": "0.1.0",
+            "mcpServers": (.[0].mcpServers * .[1].mcpServers)
+          }
+        ' "${mcp_baseline}" "${mcp_archetype}" > "${mcp_dest}"
+        log_success "  mcp.json (baseline + archetype mergeados)"
+        ((FILES_COPIED++)) || true
+      elif [[ -f "${mcp_baseline}" ]]; then
+        cp "${mcp_baseline}" "${mcp_dest}"
+        log_success "  mcp.json (apenas baseline)"
+        ((FILES_COPIED++)) || true
+      fi
+    fi
+  fi
+
   if [[ "${DRY_RUN}" == false ]]; then
     log_success "Baseline global aplicado."
   fi

@@ -4,59 +4,22 @@
 
 ## Visão Geral
 
-O `mb-frontend-react` é o power de capacidades Kiro para projetos frontend construídos com React e Next.js na MonteBravo. Ele provê agents, skills e steering files especializados para acelerar o desenvolvimento e manter a qualidade em projetos React/Next.js.
-
----
-
-## Responsabilidades
-
-- Injetar contexto React/Next.js específico no Kiro durante o desenvolvimento.
-- Prover skills de geração de código (components, pages, hooks, testes).
-- Prover agents especializados para revisão de UX, acessibilidade e performance.
-- Garantir conformidade com os padrões organizacionais para projetos frontend.
-
----
+O `mb-frontend-react` é o power de capacidades operacionais para projetos frontend React da MonteBravo. Ele complementa o archetype `frontend-react` com orientações práticas do dia a dia: debugging, performance, Design System, e padrões de código específicos.
 
 ## Instalação
 
-> TODO: Documentar o processo de instalação deste power em um projeto React/Next.js.
+Este power é instalado automaticamente pelo `bootstrap.sh` em projetos do tipo `frontend-react`.
 
-```bash
-# TODO: Adicionar o comando de instalação via Kiro quando disponível
-# Exemplo hipotético:
-# kiro power install mb-frontend-react
-```
+## O que este power adiciona
 
-> **Nota:** Este power já é instalado automaticamente quando o archetype `frontend-react` é aplicado via `bootstrap.sh`.
+### Steering files operacionais
 
----
+- **debugging-guide.md** — Como debugar aplicações React com as ferramentas da stack (Chrome DevTools MCP, React DevTools, Redux DevTools).
+- **design-system-usage.md** — Como consumir o Design System no dia a dia: importar componentes, usar tokens, criar variantes, contribuir com novos componentes.
 
-## Capacidades
+### Diferença do archetype
 
-> TODO: Detalhar as capacidades que este power adiciona ao Kiro.
-
-| Capacidade | Tipo | Descrição | Status |
-|---|---|---|---|
-| Geração de componente React | Skill | Cria componente com tipagem, estilos e teste | Não implementado |
-| Geração de page Next.js | Skill | Cria page com layout, metadata e loading state | Não implementado |
-| Geração de custom hook | Skill | Cria hook com tipagem e teste | Não implementado |
-| Revisão de UX | Agent | Analisa fluxos de usuário e usabilidade | Não implementado |
-| Auditoria de performance | Agent | Verifica bundle size e Core Web Vitals | Não implementado |
-| Revisão de acessibilidade | Agent | Verifica conformidade com WCAG | Não implementado |
-
----
-
-## Configuração
-
-> TODO: Documentar as opções de configuração deste power.
-
----
-
-## Dependências
-
-> TODO: Listar dependências deste power.
-
-- Requer archetype `frontend-react` ou configuração React/Next.js equivalente.
+O archetype define as **regras e padrões** (o que fazer). Este power define as **práticas operacionais** (como fazer no dia a dia).
 
 ---
 

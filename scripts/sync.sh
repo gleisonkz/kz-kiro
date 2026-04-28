@@ -200,6 +200,49 @@ sync_baseline() {
 
   sync_files "${src}" "${dest}" "*.md"
 
+  # Sincronizar mcp.json (baseline + archetype mergeados)
+  local mcp_baseline="${REPO_ROOT}/baselines/global/mcp/mcp.json"
+  local mcp_archetype="${REPO_ROOT}/archetypes/${MANIFEST_ARCHETYPE}/mcp/mcp.json"
+  local mcp_dest="${TARGET_DIR}/.kiro/settings/mcp.json"
+
+  if [[ "${DRY_RUN}" == true ]]; then
+    log_warn "[DRY-RUN] Verificaria mcp.json (baseline + archetype)"
+  else
+    mkdir -p "${TARGET_DIR}/.kiro/settings"
+
+    # Gerar mcp.json mergeado em temp para comparar
+    local mcp_merged
+    mcp_merged=$(mktemp)
+
+    if command -v jq &>/dev/null && [[ -f "${mcp_baseline}" && -f "${mcp_archetype}" ]]; then
+      jq -s '
+        {
+          "_comment": "MCPs homologados MonteBravo (baseline global + archetype '"${MANIFEST_ARCHETYPE}"'). Gerado por sync.sh.",
+          "_version": "0.1.0",
+          "mcpServers": (.[0].mcpServers * .[1].mcpServers)
+        }
+      ' "${mcp_baseline}" "${mcp_archetype}" > "${mcp_merged}"
+    elif [[ -f "${mcp_baseline}" ]]; then
+      cp "${mcp_baseline}" "${mcp_merged}"
+    fi
+
+    if [[ -f "${mcp_merged}" && -s "${mcp_merged}" ]]; then
+      if [[ ! -f "${mcp_dest}" ]]; then
+        cp "${mcp_merged}" "${mcp_dest}"
+        log_success "  + mcp.json (novo — baseline + archetype)"
+        ((FILES_ADDED++)) || true
+      elif ! diff -q "${mcp_merged}" "${mcp_dest}" > /dev/null 2>&1; then
+        cp "${mcp_merged}" "${mcp_dest}"
+        log_success "  ~ mcp.json (atualizado — baseline + archetype)"
+        ((FILES_UPDATED++)) || true
+      else
+        ((FILES_UNCHANGED++)) || true
+      fi
+    fi
+
+    rm -f "${mcp_merged}"
+  fi
+
   if [[ "${DRY_RUN}" == false ]]; then
     log_success "Baseline sincronizado."
   fi

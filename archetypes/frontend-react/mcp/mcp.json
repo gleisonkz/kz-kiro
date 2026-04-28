@@ -1,0 +1,19 @@
+{
+  "_comment": "MCPs específicos do archetype frontend-react. Mergeado com o baseline global no bootstrap.",
+  "_version": "0.1.0",
+  "mcpServers": {
+    "chrome-devtools": {
+      "_comment": "Chrome DevTools MCP — Controle e inspeção de Chrome ao vivo. Requer Chrome aberto com remote debugging.",
+      "command": "npx",
+      "args": ["-y", "chrome-devtools-mcp@latest"],
+      "disabled": false,
+      "autoApprove": []
+    },
+    "figma": {
+      "_comment": "Figma Dev Mode MCP — Design context direto no IDE. Requer Figma Desktop com Dev Mode MCP habilitado (Preferences > Enable local MCP Server).",
+      "url": "http://127.0.0.1:3845/sse",
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}
