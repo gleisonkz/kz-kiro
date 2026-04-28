@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "Dart Analyze on Save",
+  "description": "Automatically runs `dart analyze` when saving any .dart file, providing immediate error and warning feedback without consuming credits.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "**/*.dart"
+    ]
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "dart analyze \"$KIRO_FILE_PATH\""
+  }
+}

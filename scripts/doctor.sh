@@ -233,7 +233,7 @@ check_archetype() {
   add_json_result "pass" "archetype" "Archetype: ${archetype_name}"
 
   # Verificar steering files do archetype
-  local check_dirs=("steering:*.md" "skills:*.md" "hooks:*.json" "agents:*.md")
+  local check_dirs=("steering:*.md" "skills:*.md" "hooks:*.json" "hooks:*.kiro.hook" "agents:*.md")
 
   for entry in "${check_dirs[@]}"; do
     local dir_name="${entry%%:*}"
@@ -342,7 +342,7 @@ check_general_health() {
     local steering_count skills_count hooks_count agents_count
     steering_count=$(find "${TARGET_DIR}/.kiro/steering" -name "*.md" -type f 2>/dev/null | wc -l | tr -d ' ')
     skills_count=$(find "${TARGET_DIR}/.kiro/skills" -name "*.md" -type f 2>/dev/null | wc -l | tr -d ' ')
-    hooks_count=$(find "${TARGET_DIR}/.kiro/hooks" -name "*.json" -type f 2>/dev/null | wc -l | tr -d ' ')
+    hooks_count=$(find "${TARGET_DIR}/.kiro/hooks" \( -name "*.json" -o -name "*.kiro.hook" \) -type f 2>/dev/null | wc -l | tr -d ' ')
     agents_count=$(find "${TARGET_DIR}/.kiro/agents" -name "*.md" -type f 2>/dev/null | wc -l | tr -d ' ')
 
     log_info "  Steering files: ${steering_count}"

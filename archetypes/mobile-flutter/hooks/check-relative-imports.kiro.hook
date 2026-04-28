@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "Check Relative Imports",
+  "description": "When any .dart file is saved, check if it contains relative imports starting with ../ or ./. If found, report which lines have relative imports and remind that all imports must use absolute package: syntax.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "**/*.dart"
+    ]
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "grep -n \"import '\\.\\.\\|import '\\.\" \"$KIRO_FILE_PATH\" && echo 'ERROR: Relative imports found. Use absolute package: imports instead.' || exit 0"
+  }
+}

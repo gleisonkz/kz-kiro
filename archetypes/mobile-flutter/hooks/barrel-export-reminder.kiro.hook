@@ -1,0 +1,18 @@
+{
+  "enabled": true,
+  "name": "Barrel Export Reminder",
+  "description": "When a new .dart file is created inside pages/, routes/, or widgets/ folders, check if it should be exported in the feature's barrel file and remind the developer if needed.",
+  "version": "1",
+  "when": {
+    "type": "fileCreated",
+    "patterns": [
+      "**/lib/**/pages/*.dart",
+      "**/lib/**/routes/*.dart",
+      "**/lib/**/widgets/*.dart"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A new .dart file was just created inside lib/. Analyze it and decide whether the developer should export it in the feature's barrel file.\n\nIf the file qualifies:\n1. Determine the package root (nearest ancestor with pubspec.yaml).\n2. Read the pubspec.yaml to get the package name.\n3. Identify the feature barrel file at lib/<package_name>.dart (e.g., lib/feature_auth.dart).\n4. Check if the barrel file already exports this new file.\n5. If NOT already exported, remind the developer by printing a clear message like:\n   \"The new file <path> looks like a public-facing class (page/route/widget). Consider adding it to the barrel file <barrel_path>:\n   export '<relative_path>';\"\n6. Do NOT modify the barrel file automatically — only remind."
+  }
+}

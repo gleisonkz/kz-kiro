@@ -9,7 +9,7 @@
 #   ./scripts/bootstrap.sh [opções]
 #
 # Opções:
-#   --project-type <tipo>   Tipo de projeto: backend-nest | frontend-react
+#   --project-type <tipo>   Tipo de projeto: backend-nest | frontend-react | mobile-flutter
 #   --target <caminho>      Caminho para o diretório do projeto destino
 #   --powers <lista>        Lista de powers adicionais separados por vírgula (opcional)
 #   --dry-run               Simula a execução sem aplicar mudanças
@@ -153,7 +153,7 @@ parse_args() {
 
   if [[ -z "${PROJECT_TYPE}" ]]; then
     log_error "Argumento obrigatório ausente: --project-type"
-    log_error "Tipos disponíveis: backend-nest, frontend-react"
+    log_error "Tipos disponíveis: backend-nest, frontend-react, mobile-flutter"
     exit 1
   fi
 
@@ -168,7 +168,7 @@ parse_args() {
     exit 1
   }
 
-  local valid_types=("backend-nest" "frontend-react")
+  local valid_types=("backend-nest" "frontend-react" "mobile-flutter")
   local valid=false
   for t in "${valid_types[@]}"; do
     [[ "${PROJECT_TYPE}" == "${t}" ]] && valid=true && break
@@ -275,6 +275,7 @@ apply_archetype() {
   if [[ -d "${archetype_dir}/hooks" ]]; then
     log_info "  Copiando hooks..."
     copy_files "${archetype_dir}/hooks" "${TARGET_DIR}/.kiro/hooks" "*.json"
+    copy_files "${archetype_dir}/hooks" "${TARGET_DIR}/.kiro/hooks" "*.kiro.hook"
   fi
 
   # Agents

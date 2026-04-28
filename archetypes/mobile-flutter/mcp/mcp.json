@@ -1,0 +1,13 @@
+{
+  "_comment": "MCPs específicos do archetype mobile-flutter. Mergeado com o baseline global no bootstrap.",
+  "_version": "0.1.0",
+  "mcpServers": {
+    "dart": {
+      "_comment": "Dart MCP Server — Análise estática, completions e refactoring para Dart/Flutter.",
+      "command": "dart",
+      "args": ["mcp-server"],
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}

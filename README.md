@@ -25,11 +25,13 @@ mb-kiro/
 │       └── steering/   # Arquivos .md de steering que o Kiro lê como contexto de projeto
 ├── archetypes/         # Templates de configuração Kiro por tipo de projeto
 │   ├── backend-nest/
-│   └── frontend-react/
+│   ├── frontend-react/
+│   └── mobile-flutter/
 ├── powers/             # Powers reutilizáveis empacotados para instalação via Kiro
 │   ├── mb-kiro-manager/
 │   ├── mb-backend-nest/
 │   ├── mb-frontend-react/
+│   ├── mb-mobile-flutter/
 │   └── mb-monorepo-nx/
 ├── scripts/            # Ferramentas de linha de comando para bootstrap, sync e doctor
 ├── examples/           # Exemplos de manifesto e estrutura de projeto

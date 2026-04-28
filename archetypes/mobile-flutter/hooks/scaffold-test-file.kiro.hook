@@ -1,0 +1,19 @@
+{
+  "enabled": true,
+  "name": "Scaffold Test File",
+  "description": "When a new .dart file is created inside usecases/, datasources/, repositories/, or providers/ folders, create the corresponding test file mirroring the lib/ path under test/, following the centralized mock pattern: mocks in test/mocks/, fixtures in test/fixtures/, and mocktail imported via package:core_dev/core_dev.dart. Also create or update the mock file and mocks.dart barrel as needed.",
+  "version": "1",
+  "when": {
+    "type": "fileCreated",
+    "patterns": [
+      "**/lib/**/usecases/*.dart",
+      "**/lib/**/datasources/*.dart",
+      "**/lib/**/repositories/*.dart",
+      "**/lib/**/providers/*.dart"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A new .dart file was just created. Scaffold the corresponding test infrastructure:\n\n1. Determine the package root (the nearest ancestor directory containing a pubspec.yaml).\n2. Compute the relative path from lib/ and mirror it under test/ for the test file (e.g., lib/domain/usecases/login_usecase.dart → test/domain/usecases/login_usecase_test.dart).\n3. Create the test file with:\n   - Import of `package:core_dev/core_dev.dart` (provides mocktail)\n   - Import of `package:flutter_test/flutter_test.dart`\n   - Import of the source file under test using absolute package imports\n   - Import of the mocks barrel: `../mocks/mocks.dart` (relative from test file)\n   - A Mock class for the primary dependency (e.g., `class MockXxxRepository extends Mock implements XxxRepository {}` for a usecase)\n   - A `main()` with `setUp()` and a placeholder `test()` following the project pattern\n4. Create the mock file in test/mocks/ (e.g., mock_xxx_repository.dart) if it doesn't already exist.\n5. Update test/mocks/mocks.dart barrel to export the new mock file and `package:core_dev/core_dev.dart` if not already present. Create the barrel if it doesn't exist.\n\nFollow these rules strictly:\n- Use absolute package: imports, never relative imports starting with ./ or ../ (except for test-internal barrel imports like mocks/mocks.dart and fixtures/fixtures.dart which use relative paths).\n- Use mocktail via package:core_dev/core_dev.dart, NOT a direct mocktail import.\n- Mirror the lib/ directory structure exactly under test/.\n- Name test files as <original_file>_test.dart.\n- Name mock files as mock_<class_name_snake_case>.dart.\n- Do NOT create inline mocks in test files — always use centralized mocks from test/mocks/.\n- Use prefer_single_quotes for all strings.\n- Add trailing commas per project lint rules."
+  }
+}

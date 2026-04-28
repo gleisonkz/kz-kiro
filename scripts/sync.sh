@@ -274,6 +274,7 @@ sync_archetype() {
   if [[ -d "${archetype_dir}/hooks" ]]; then
     log_info "  Hooks..."
     sync_files "${archetype_dir}/hooks" "${TARGET_DIR}/.kiro/hooks" "*.json"
+    sync_files "${archetype_dir}/hooks" "${TARGET_DIR}/.kiro/hooks" "*.kiro.hook"
   fi
 
   # Agents

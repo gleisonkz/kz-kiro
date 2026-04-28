@@ -1,0 +1,5 @@
+{
+  "_comment": "Power mb-mobile-flutter não adiciona MCPs extras. MCPs de Flutter (Dart MCP) ficam no archetype.",
+  "_version": "0.1.0",
+  "mcpServers": {}
+}
