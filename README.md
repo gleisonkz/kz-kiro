@@ -87,7 +87,7 @@ mb-kiro/
 
 ---
 
-## Versionamento
+## Versionamento (a revisar)
 
 Cada componente deste repositório evolui de forma independente usando versionamento semântico:
 
@@ -96,16 +96,6 @@ Cada componente deste repositório evolui de forma independente usando versionam
 - `powers/<nome>` — versionado em `powers/<nome>/VERSION`
 
 Mudanças **breaking** incrementam o `MAJOR`. Novas funcionalidades compatíveis incrementam o `MINOR`. Correções incrementam o `PATCH`.
-
----
-
-## Próximos Passos
-
-- [ ] Preencher conteúdo dos steering files no baseline global
-- [ ] Definir conteúdo completo dos archetypes backend-nest e frontend-react
-- [ ] Implementar scripts bootstrap.sh, sync.sh e doctor.sh
-- [ ] Publicar powers via Kiro Registry (quando disponível)
-- [ ] Definir processo de aprovação para mudanças no baseline global
 
 ---
 
