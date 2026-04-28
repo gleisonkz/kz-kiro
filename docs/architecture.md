@@ -45,6 +45,8 @@ Contém os **steering files globais** — documentos que o Kiro injeta como cont
 Estrutura:
 ```
 baselines/global/
+├── mcp/
+│   └── mcp.json                      # MCPs homologados pela organização
 └── steering/
     ├── engineering-principles.md     # Princípios de engenharia
     ├── security-baseline.md          # Diretrizes de segurança
@@ -89,6 +91,7 @@ Um archetype é um "pacote de configuração Kiro" para um tipo específico de p
 
 ```
 archetypes/<nome>/
+├── mcp/         # Configuração MCP específica desta stack
 ├── steering/    # Steering files específicos desta stack
 ├── hooks/       # Hooks do Kiro para esta stack
 ├── agents/      # Agents customizados para esta stack

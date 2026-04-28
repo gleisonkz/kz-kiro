@@ -1,6 +1,7 @@
 {
+  "enabled": true,
   "name": "Revisar Fronteiras de Módulo",
-  "version": "1.1.0",
+  "version": "1",
   "description": "Verifica se imports entre módulos respeitam as fronteiras arquiteturais: módulos não devem depender de implementações internas de outros módulos.",
   "when": {
     "type": "preToolUse",

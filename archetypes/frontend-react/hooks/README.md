@@ -10,9 +10,9 @@
 
 | Hook | Trigger | Ação | Descrição |
 |---|---|---|---|
-| Lint on Save | `fileEdited` (*.ts, *.tsx) | `runCommand` | Executa ESLint --fix ao salvar |
-| Type Check on Save | `fileEdited` (*.ts, *.tsx) | `runCommand` | Executa tsc --noEmit ao salvar |
-| Revisar Nomenclatura | `fileCreated` (*.ts, *.tsx) | `askAgent` | Verifica convenções de nomenclatura em arquivos novos |
+| Lint After Write | `postToolUse` (write) | `runCommand` | Executa lint após operações de escrita |
+| Type Check on Save | `fileEdited` (**/*.ts, **/*.tsx) | `runCommand` | Executa tsc --noEmit ao salvar |
+| Revisar Nomenclatura | `fileCreated` (**/*.ts, **/*.tsx) | `askAgent` | Verifica convenções de nomenclatura em arquivos novos |
 | Revisar Qualidade de Componente | `fileCreated` (**/ui/**/*.tsx, **/components/**/*.tsx) | `askAgent` | Verifica acessibilidade, tipagem, tokens e composição |
 | Revisar Fronteiras de Módulo | `preToolUse` (write) | `askAgent` | Verifica se imports respeitam fronteiras entre módulos |
 | Executar Testes Após Task | `postTaskExecution` | `runCommand` | Roda vitest após conclusão de task de spec |
@@ -23,17 +23,17 @@
 ## Categorias
 
 ### Qualidade de código (automáticos)
-- `lint-on-save.json` — garante padrões ESLint a cada save
-- `typecheck-on-save.json` — detecta erros de tipo rapidamente
+- `lint-after-write.kiro.hook` — garante padrões de lint após cada escrita
+- `typecheck-on-save.kiro.hook` — detecta erros de tipo rapidamente
 
 ### Revisão arquitetural (agente)
-- `review-naming-conventions.json` — convenções de nomenclatura MonteBravo
-- `review-component-quality.json` — padrões do Design System
-- `review-feature-boundaries.json` — fronteiras entre módulos (bounded contexts)
+- `review-naming-conventions.kiro.hook` — convenções de nomenclatura MonteBravo
+- `review-component-quality.kiro.hook` — padrões do Design System
+- `review-feature-boundaries.kiro.hook` — fronteiras entre módulos (bounded contexts)
 
 ### Ciclo de desenvolvimento
-- `run-tests-after-task.json` — testes após cada task de spec
-- `remind-test-coverage.json` — lembrete de cobertura ao finalizar sessão
+- `run-tests-after-task.kiro.hook` — testes após cada task de spec
+- `remind-test-coverage.kiro.hook` — lembrete de cobertura ao finalizar sessão
 
 ---
 
@@ -42,6 +42,7 @@
 - Hooks de `runCommand` executam comandos no terminal e podem falhar se as dependências não estiverem instaladas.
 - Hooks de `askAgent` consomem contexto do agente — são revisões inteligentes, não apenas lint.
 - O hook de fronteiras (`preToolUse` write) verifica imports antes de escrever arquivos, prevenindo violações arquiteturais.
+- O hook de lint (`postToolUse` write) roda após cada escrita do agente, garantindo conformidade contínua.
 
 ---
 

@@ -1,0 +1,14 @@
+{
+  "enabled": true,
+  "name": "Type Check After Write",
+  "version": "1",
+  "description": "Executa verificação de tipos TypeScript após o agente escrever ou editar arquivos.",
+  "when": {
+    "type": "postToolUse",
+    "toolTypes": ["write"]
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "npx tsc --noEmit --pretty"
+  }
+}

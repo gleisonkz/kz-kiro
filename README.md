@@ -22,6 +22,7 @@ Este repositório é a **fonte da verdade** para tudo que diz respeito à adoç�
 mb-kiro/
 ├── baselines/          # Diretrizes e políticas globais (aplicadas a todos os projetos)
 │   └── global/
+│       ├── mcp/        # MCPs homologados pela organização
 │       └── steering/   # Arquivos .md de steering que o Kiro lê como contexto de projeto
 ├── archetypes/         # Templates de configuração Kiro por tipo de projeto
 │   ├── backend-nest/

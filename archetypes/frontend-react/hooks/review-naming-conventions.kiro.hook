@@ -1,10 +1,11 @@
 {
+  "enabled": true,
   "name": "Revisar Convenções de Nomenclatura",
-  "version": "1.0.0",
+  "version": "1",
   "description": "Revisa se arquivos criados seguem as convenções de nomenclatura MonteBravo (kebab-case para módulos, PascalCase para componentes, sufixos corretos).",
   "when": {
     "type": "fileCreated",
-    "patterns": ["*.ts", "*.tsx"]
+    "patterns": ["**/*.ts", "**/*.tsx"]
   },
   "then": {
     "type": "askAgent",

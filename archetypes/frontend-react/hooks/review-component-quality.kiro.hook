@@ -1,6 +1,7 @@
 {
+  "enabled": true,
   "name": "Revisar Qualidade de Componente",
-  "version": "1.1.0",
+  "version": "1",
   "description": "Revisa componentes React criados para garantir conformidade com os padrões de qualidade do Design System: acessibilidade, tipagem, tokens e composição.",
   "when": {
     "type": "fileCreated",

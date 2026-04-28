@@ -1,6 +1,7 @@
 {
+  "enabled": true,
   "name": "Lembrar Cobertura de Testes",
-  "version": "1.1.0",
+  "version": "1",
   "description": "Ao parar o agente, lembra de verificar se os arquivos criados/editados possuem testes correspondentes.",
   "when": {
     "type": "agentStop"
