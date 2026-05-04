@@ -9,9 +9,16 @@
       "autoApprove": []
     },
     "github": {
-      "_comment": "GitHub MCP Server oficial — PRs, issues, code search, repos.",
-      "command": "npx",
-      "args": ["-y", "@anthropic-ai/github-mcp-server@latest"],
+      "_comment": "GitHub MCP Server oficial (github/github-mcp-server) — PRs, issues, code search, repos, actions.",
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "GITHUB_PERSONAL_ACCESS_TOKEN",
+        "ghcr.io/github/github-mcp-server"
+      ],
       "env": {
         "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
       },
