@@ -11,13 +11,13 @@ inclusion: manual
 O Design System é instalado como dependência npm:
 
 ```bash
-pnpm add @monte-bravo/design-system
+pnpm add @monte-bravo/design-system-web
 ```
 
 Importar componentes via named imports:
 
 ```tsx
-import { Button, Input, Modal } from '@monte-bravo/design-system';
+import { Button, Input, Modal } from '@monte-bravo/design-system-web';
 ```
 
 Nunca importar de caminhos internos do pacote — usar apenas a API pública.
@@ -40,7 +40,7 @@ Tokens semânticos estão disponíveis via TailwindCSS. Usar classes de token em
 - Spacing: `p-spacing-xs`, `p-spacing-sm`, `p-spacing-md`, `p-spacing-lg`, `p-spacing-xl`
 - Typography: classes de tipografia definidas no Design System
 
-> Para a lista completa de tokens, consultar o Storybook do Design System.
+> **Fonte de verdade para tokens**: sempre consultar o arquivo instalado localmente em `node_modules/@monte-bravo/design-system-web/dist/tokens.css`. Não usar repositório remoto ou Storybook como referência — pode haver drift entre o que está publicado e o que está de fato instalado no projeto.
 
 ## Criando Variantes com CVA
 
@@ -76,23 +76,27 @@ export const buttonVariants = cva(
 ```tsx
 // Button.tsx
 import { buttonVariants } from './button.variants';
-import { cn } from '@/shared/lib/cn';
 
 export function Button({ variant, size, className, ...props }: ButtonProps) {
   return (
-    <button className={cn(buttonVariants({ variant, size }), className)} {...props} />
+    <button className={buttonVariants({ variant, size, className })} {...props} />
   );
 }
 ```
 
 Arquivo de variants fica no mesmo diretório do componente: `Component.tsx` + `component.variants.ts`.
 
+### Quando usar `cn` vs passar `className` direto no `cva`
+
+- **Com `cva`**: passar `className` direto na chamada do `cva`. Ele já faz o merge internamente de forma eficiente, sem necessidade de `cn`.
+- **Sem `cva`**: usar `cn()` para compor classes manualmente (condicionais, composição de múltiplas fontes de classes, etc.).
+
 ## Composição de Componentes
 
 Componentes compostos usam padrão de namespace:
 
 ```tsx
-import { Modal } from '@monte-bravo/design-system';
+import { Modal } from '@monte-bravo/design-system-web';
 
 <Modal.Root>
   <Modal.Trigger asChild>
@@ -121,16 +125,16 @@ Fluxo para adicionar componente ao Design System:
 6. PR Review + Chromatic (visual regression).
 7. Changeset para versionamento.
 8. Publicação automática via CI.
-9. Atualizar dependência no monorepo: `pnpm update @monte-bravo/design-system`.
+9. Atualizar dependência no monorepo: `pnpm update @monte-bravo/design-system-web`.
 
 ## Atualizando o Design System
 
 ```bash
 # Ver versão atual
-pnpm list @monte-bravo/design-system
+pnpm list @monte-bravo/design-system-web
 
 # Atualizar para última versão
-pnpm update @monte-bravo/design-system
+pnpm update @monte-bravo/design-system-web
 
 # Verificar changelog antes de atualizar
 # Consultar o CHANGELOG.md no repositório do Design System

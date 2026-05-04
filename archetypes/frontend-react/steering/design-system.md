@@ -117,7 +117,7 @@ O Storybook é a ferramenta principal de documentação técnica e apresentaçã
 3. Merge em `main`.
 4. `changeset version` calcula próxima versão, atualiza package.json e CHANGELOG.
 5. CI/CD detecta mudança de versão e publica no registry.
-6. Apps atualizam: `pnpm update @monte-bravo/design-system@latest`.
+6. Apps atualizam: `pnpm update @monte-bravo/design-system-web@latest`.
 
 ### Depreciação
 
