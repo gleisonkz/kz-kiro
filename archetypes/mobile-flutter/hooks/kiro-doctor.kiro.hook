@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Kiro Doctor",
+  "description": "Analisa as configurações do Kiro no projeto (.kiro/) comparando com baselines e archetypes esperados, e gera um relatório markdown com diagnóstico e recomendações.",
+  "version": "1",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Analise as configurações do Kiro neste projeto e gere um relatório de diagnóstico completo. Siga estes passos:\n\n1. **Leia a estrutura `.kiro/`** do projeto atual (steering, hooks, settings/mcp.json, specs, skills, agents).\n\n2. **Compare com as baselines esperadas** em `baselines/global/` deste repositório de governança:\n   - Steering files: quais estão presentes vs quais deveriam estar segundo a baseline.\n   - MCP servers: quais estão configurados vs baseline global (`baselines/global/mcp/mcp.json`).\n\n3. **Identifique o archetype do projeto** (frontend-react, backend-nest, mobile-flutter) e compare com os artefatos esperados em `archetypes/{archetype}/`:\n   - Hooks: quais estão presentes, habilitados/desabilitados, vs esperados pelo archetype.\n   - Steering files: presentes vs esperados.\n   - Skills: presentes vs esperados.\n\n4. **Verifique specs existentes** em `.kiro/specs/`:\n   - Liste specs com status (completas, em progresso, pendentes).\n   - Identifique specs com tasks incompletas.\n\n5. **Gere o relatório** e salve em `kiro-doctor-report.md` na raiz do projeto com as seguintes seções:\n   - **Resumo**: visão geral do estado de saúde (✅ OK, ⚠️ Atenção, ❌ Problema)\n   - **Steering**: arquivos presentes, ausentes, extras\n   - **Hooks**: configurados, habilitados, ausentes do archetype\n   - **MCP Servers**: configurados vs baseline, servers extras ou ausentes\n   - **Skills**: presentes vs esperados pelo archetype\n   - **Specs**: listagem com status\n   - **Recomendações**: ações sugeridas para alinhar o projeto com a governança\n\nUse emojis para status visual (✅ ⚠️ ❌) e tabelas markdown quando apropriado."
+  }
+}
