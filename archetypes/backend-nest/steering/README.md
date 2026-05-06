@@ -1,6 +1,6 @@
 # Steering — Archetype Backend NestJS
 
-> **Steering File | Archetype: backend-nest | Versão: 0.1.0**
+> **Steering File | Archetype: backend-nest | Versão: 0.2.0**
 >
 > Este arquivo é injetado como contexto pelo Kiro em projetos que utilizam o archetype backend-nest.
 > Ele complementa o baseline global com diretrizes específicas para projetos NestJS.
@@ -60,6 +60,35 @@ src/
 
 ---
 
+## Comunicação entre Serviços
+
+<!-- Baseado em ADR: ADR-001 – Padrão arquitetural de comunicação - Serviços distribuídos internos | Confluence: https://montebravo.atlassian.net/wiki/spaces/MBI/pages/219840517 -->
+
+A comunicação entre serviços backend segue o padrão de **mensageria assíncrona coreografada**:
+
+| Aspecto | Padrão |
+|---|---|
+| Modelo | Coreografia (sem orquestrador central) |
+| Protocolo | Assíncrono via Message Broker |
+| Brokers aprovados | Apache Kafka (preferido), RabbitMQ |
+| Transações financeiras | Padrão Outbox obrigatório |
+| Alta disponibilidade | Cluster com múltiplos nós |
+| Segurança | TLS 1.2+ obrigatório |
+
+**Diretrizes para NestJS:**
+- Usar `@nestjs/microservices` com transport Kafka ou RabbitMQ.
+- Implementar consumers idempotentes (deduplicação por message ID).
+- Propagar correlation ID em todos os eventos publicados.
+- Para transações financeiras, implementar Outbox Pattern com polling ou CDC (Change Data Capture).
+- Comunicação síncrona (REST/gRPC) é aceitável apenas para consultas simples sem necessidade de resiliência a falhas do receptor.
+
+**Observabilidade obrigatória:**
+- Logs estruturados com correlation ID.
+- Métricas de consumer lag, throughput e latência.
+- Distributed tracing (OpenTelemetry recomendado).
+
+---
+
 ## Padrões de Código
 
 > TODO: Detalhar os padrões de código específicos para NestJS.
@@ -113,4 +142,4 @@ Ao analisar código NestJS, o Kiro deve verificar:
 
 ---
 
-*Versão: 0.1.0 | Última revisão: 2026-04 | Próxima revisão: TODO*
+*Versão: 0.2.0 | Última revisão: 2026-05-06 | Próxima revisão: TODO*

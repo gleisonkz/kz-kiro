@@ -1,6 +1,6 @@
 # Baseline de Segurança — MonteBravo
 
-> **Steering File | Baseline Global | Versão: 0.1.0**
+> **Steering File | Baseline Global | Versão: 0.2.0**
 >
 > Este arquivo é injetado como contexto pelo Kiro em todos os projetos da organização.
 > Ele define os requisitos mínimos de segurança que todo projeto deve atender.
@@ -56,11 +56,19 @@ Este steering file define o baseline de segurança da MonteBravo. O Kiro deve us
 
 ### Comunicação Segura
 
-> TODO: Definir os padrões de comunicação segura entre serviços.
+<!-- Baseado em ADR: ADR-001 – Padrão arquitetural de comunicação - Serviços distribuídos internos | Confluence: https://montebravo.atlassian.net/wiki/spaces/MBI/pages/219840517 -->
 
-- [ ] Toda comunicação entre serviços deve usar TLS 1.2+.
+A comunicação entre serviços distribuídos internos utiliza mensageria assíncrona via Message Broker (Kafka/RabbitMQ). Os requisitos de segurança para esse modelo são:
+
+- [x] Toda comunicação entre serviços deve usar TLS 1.2+.
+- [x] O Message Broker deve operar em cluster com múltiplos nós para alta disponibilidade.
 - [ ] TODO: Definir política de certificados (emissão, renovação, revogação).
 - [ ] TODO: Definir política de mutual TLS para serviços internos.
+- [ ] TODO: Definir política de autenticação de producers/consumers no broker (SASL, ACLs).
+
+**Transações financeiras:**
+- Operações financeiras e integrações com serviços externos devem implementar o padrão **Outbox** para garantir atomicidade (ACID) em ambiente distribuído.
+- A integridade das mensagens deve ser verificável (idempotência obrigatória nos consumers).
 
 ### Controle de Acesso ao Repositório
 
@@ -97,4 +105,4 @@ Este steering file define o baseline de segurança da MonteBravo. O Kiro deve us
 
 ---
 
-*Versão: 0.1.0 | Última revisão: 2026-04 | Próxima revisão: TODO*
+*Versão: 0.2.0 | Última revisão: 2026-05-06 | Próxima revisão: TODO*

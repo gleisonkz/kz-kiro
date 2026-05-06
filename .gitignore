@@ -38,6 +38,11 @@ Thumbs.db
 .kiro/sessions/
 .kiro/*.local.*
 
+# Relatórios temporários dos hooks de ADR sync
+adr-sync-report.md
+steering-adr-validation.md
+steering-updates-summary.md
+
 # Python (scripts auxiliares)
 __pycache__/
 *.py[cod]

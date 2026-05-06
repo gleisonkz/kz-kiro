@@ -1,6 +1,6 @@
 # Princípios de Engenharia — MonteBravo
 
-> **Steering File | Baseline Global | Versão: 0.1.0**
+> **Steering File | Baseline Global | Versão: 0.2.0**
 >
 > Este arquivo é injetado como contexto pelo Kiro em todos os projetos da organização.
 > Ele descreve os princípios de engenharia que devem guiar decisões técnicas, arquiteturais e de processo.
@@ -34,23 +34,52 @@ Este steering file define os princípios fundamentais de engenharia da MonteBrav
 
 > TODO: Descrever a abordagem API-first e como as interfaces devem ser tratadas como contratos estáveis.
 
-### 4. Observabilidade por Padrão
+### 4. Comunicação Assíncrona entre Serviços
 
-> TODO: Descrever as expectativas de logs, métricas e rastreamento em todos os serviços.
+<!-- Baseado em ADR: ADR-001 – Padrão arquitetural de comunicação - Serviços distribuídos internos | Confluence: https://montebravo.atlassian.net/wiki/spaces/MBI/pages/219840517 -->
 
-### 5. Segurança Integrada (Shift Left)
+A comunicação entre serviços distribuídos internos deve seguir o padrão de **mensageria assíncrona com coreografia**, utilizando um Message Broker como intermediário. Essa decisão visa atender os requisitos de segurança, escalabilidade, elasticidade e alta disponibilidade.
+
+**Princípios:**
+- Serviços se comunicam de forma assíncrona via Message Broker (fire-and-forget).
+- Padrão coreografado: serviços publicam eventos sem depender de um orquestrador central.
+- Comunicação síncrona (REST) é aceitável apenas para consultas simples e de baixa latência onde não há necessidade de resiliência a falhas do receptor.
+- Transações financeiras e integrações com serviços externos devem implementar o padrão **Outbox** para garantir ACID em ambiente distribuído.
+
+**Brokers aprovados:**
+- Apache Kafka (preferido para alto throughput e event sourcing)
+- RabbitMQ (aceitável para cenários de menor volume com round-robin)
+
+**Requisitos obrigatórios:**
+- O Message Broker deve operar em cluster com múltiplos nós (alta disponibilidade).
+- Observabilidade centralizada (logs, métricas, tracing) é obrigatória para rastreabilidade de mensagens assíncronas.
+- Toda comunicação entre serviços deve usar TLS 1.2+.
+
+### 5. Observabilidade por Padrão
+
+<!-- Baseado em ADR: ADR-001 – Padrão arquitetural de comunicação - Serviços distribuídos internos | Confluence: https://montebravo.atlassian.net/wiki/spaces/MBI/pages/219840517 -->
+
+Todos os serviços devem implementar observabilidade estruturada e centralizada. Em arquiteturas com mensageria assíncrona, a rastreabilidade é crítica para troubleshooting.
+
+**Expectativas mínimas:**
+- Logs estruturados (JSON) com correlation ID propagado entre serviços.
+- Métricas de latência, throughput e tamanho de filas expostas.
+- Distributed tracing para acompanhar o fluxo de mensagens entre serviços.
+- Alertas configurados para filas com crescimento anormal ou consumers com lag.
+
+### 6. Segurança Integrada (Shift Left)
 
 > TODO: Descrever como segurança deve ser considerada desde o design, não como afterthought.
 
-### 6. Revisão de Código como Ferramenta de Aprendizado
+### 7. Revisão de Código como Ferramenta de Aprendizado
 
 > TODO: Descrever as expectativas de code review — foco em conhecimento compartilhado, não em gatekeeping.
 
-### 7. Documentação como Código
+### 8. Documentação como Código
 
 > TODO: Descrever as expectativas de documentação — README, ADRs, changelogs, comentários de código.
 
-### 8. Evoluir sem Quebrar
+### 9. Evoluir sem Quebrar
 
 > TODO: Descrever as expectativas de compatibilidade, versionamento e migração de APIs e schemas.
 
@@ -82,4 +111,4 @@ Este steering file define os princípios fundamentais de engenharia da MonteBrav
 
 ---
 
-*Versão: 0.1.0 | Última revisão: 2026-04 | Próxima revisão: TODO*
+*Versão: 0.2.0 | Última revisão: 2026-05-06 | Próxima revisão: TODO*
