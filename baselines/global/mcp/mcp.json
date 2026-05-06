@@ -30,12 +30,6 @@
       "url": "https://mcp.context7.com/mcp",
       "disabled": false,
       "autoApprove": []
-    },
-    "datadog": {
-      "_comment": "Datadog MCP Server — Logs, métricas, traces, dashboards, monitors. Autenticação via OAuth.",
-      "url": "https://mcp.datadoghq.com?toolsets=core",
-      "disabled": false,
-      "autoApprove": []
     }
   }
 }
