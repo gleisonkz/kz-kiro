@@ -1,0 +1,15 @@
+{
+  "enabled": true,
+  "name": "Lint After Agent",
+  "description": "Runs lint after agent stops",
+  "version": "1",
+  "when": {
+    "type": "agentStop"
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "pnpm turbo lint --affected"
+  },
+  "workspaceFolderName": "mb-monorepo-frontend",
+  "shortName": "lint-after-write"
+}

@@ -4,11 +4,12 @@
   "version": "1",
   "description": "Executa verificação de tipos TypeScript após o agente escrever ou editar arquivos.",
   "when": {
-    "type": "postToolUse",
-    "toolTypes": ["write"]
+    "type": "agentStop"
   },
   "then": {
-    "type": "runCommand",
-    "command": "npx tsc --noEmit --pretty"
-  }
+    "type": "askAgent",
+    "prompt": "Valide os arquivos alterados com o comando `npx tsc --noEmit --pretty`"
+  },
+  "workspaceFolderName": "mb-monorepo-frontend",
+  "shortName": "typecheck-on-save"
 }
