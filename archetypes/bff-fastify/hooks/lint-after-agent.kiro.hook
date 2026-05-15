@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Lint After Agent",
+  "description": "Executa lint após o agente parar para garantir conformidade com padrões de código.",
+  "version": "1",
+  "when": {
+    "type": "agentStop"
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "pnpm lint"
+  }
+}

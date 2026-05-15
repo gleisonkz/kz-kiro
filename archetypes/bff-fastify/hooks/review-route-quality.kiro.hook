@@ -1,0 +1,14 @@
+{
+  "enabled": true,
+  "name": "Revisar Qualidade de Rota",
+  "version": "1",
+  "description": "Revisa rotas Fastify criadas para garantir conformidade com os padrões RFC-0014: schemas Zod, encapsulamento via plugin, error handling e separação de responsabilidades.",
+  "when": {
+    "type": "fileCreated",
+    "patterns": ["**/modules/**/routes/*.ts", "**/modules/**/schemas/*.ts"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Revise a rota ou schema recém-criado verificando (baseado em RFC-0014):\n\n1. SCHEMAS ZOD: toda rota tem schema Zod para querystring, params, body e response (conforme aplicável), com tipos inferidos via z.infer\n2. SEPARAÇÃO: handlers instanciam o service e delegam — não contêm lógica de orquestração direta nem chamadas a clients\n3. PLUGIN PATTERN: rotas são exportadas como FastifyPluginAsync e registradas via fastify.register()\n4. ERROR HANDLING: erros são tratados pelo error handler global, sem try/catch genérico que engole erros\n5. NOMENCLATURA: arquivo de rota nomeado como <verbo>-<recurso>.ts, schema como <route-name>.schema.ts\n6. PREFIXO: módulo registra rotas com prefixo do domínio (ex: /portfolio)\n\nSe encontrar problemas, sugira correções específicas. Se estiver tudo correto, não diga nada."
+  }
+}

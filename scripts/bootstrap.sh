@@ -9,7 +9,7 @@
 #   ./scripts/bootstrap.sh [opções]
 #
 # Opções:
-#   --project-type <tipo>   Tipo de projeto: backend-nest | frontend-react | mobile-flutter
+#   --project-type <tipo>   Tipo de projeto: backend-nest | bff-fastify | frontend-react | mobile-flutter
 #   --target <caminho>      Caminho para o diretório do projeto destino
 #   --powers <lista>        Lista de powers adicionais separados por vírgula (opcional)
 #   --dry-run               Simula a execução sem aplicar mudanças
@@ -153,7 +153,7 @@ parse_args() {
 
   if [[ -z "${PROJECT_TYPE}" ]]; then
     log_error "Argumento obrigatório ausente: --project-type"
-    log_error "Tipos disponíveis: backend-nest, frontend-react, mobile-flutter"
+    log_error "Tipos disponíveis: backend-nest, bff-fastify, frontend-react, mobile-flutter"
     exit 1
   fi
 
@@ -168,7 +168,7 @@ parse_args() {
     exit 1
   }
 
-  local valid_types=("backend-nest" "frontend-react" "mobile-flutter")
+  local valid_types=("backend-nest" "bff-fastify" "frontend-react" "mobile-flutter")
   local valid=false
   for t in "${valid_types[@]}"; do
     [[ "${PROJECT_TYPE}" == "${t}" ]] && valid=true && break

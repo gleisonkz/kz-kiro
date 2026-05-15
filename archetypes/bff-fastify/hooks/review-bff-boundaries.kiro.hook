@@ -1,0 +1,14 @@
+{
+  "enabled": true,
+  "name": "Revisar Fronteiras do BFF",
+  "version": "1",
+  "description": "Verifica se o código escrito no BFF respeita as fronteiras arquiteturais: o BFF não deve conter lógica de negócio, apenas orquestração e transformação.",
+  "when": {
+    "type": "preToolUse",
+    "toolTypes": ["write"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Antes de escrever este arquivo, verifique se o código respeita as fronteiras arquiteturais do BFF. APENAS verifique se o arquivo está dentro de src/modules/. Se não estiver, prossiga normalmente sem comentários.\n\nRegras para arquivos dentro de modules/ (baseado em RFC-0014):\n1. O BFF NÃO deve conter regras de negócio de domínio — apenas composição, orquestração e transformação de dados\n2. Services devem apenas orquestrar chamadas a clients (via fastify.clients.*) e aplicar mappers\n3. Mappers devem ser funções puras sem side effects\n4. Rotas não devem conter lógica de orquestração — devem instanciar o service e delegar\n5. Não deve haver acesso direto a banco de dados — o BFF é stateless e consome serviços downstream\n6. Validações devem ser apenas de contrato (schema Zod), não de regras de domínio\n7. Módulos não devem importar implementações internas de outros módulos — cada módulo é encapsulado pelo plugin Fastify\n8. Comunicação entre módulos deve ocorrer via contratos explícitos ou composição na camada app/\n\nSe houver violação de fronteira, sugira a correção. Se não houver violação ou o arquivo não estiver em modules/, prossiga normalmente sem comentários."
+  }
+}

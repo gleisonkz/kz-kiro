@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Type Check After Agent",
+  "description": "Executa verificação de tipos TypeScript após o agente escrever ou editar arquivos.",
+  "version": "1",
+  "when": {
+    "type": "agentStop"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Valide os arquivos alterados com o comando `pnpm typecheck`"
+  }
+}

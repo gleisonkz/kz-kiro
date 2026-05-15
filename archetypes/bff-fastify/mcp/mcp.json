@@ -1,0 +1,5 @@
+{
+  "_comment": "MCPs específicos do archetype bff-fastify. Mergeado com o baseline global no bootstrap.",
+  "_version": "0.1.0",
+  "mcpServers": {}
+}

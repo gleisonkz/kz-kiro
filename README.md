@@ -26,6 +26,7 @@ mb-kiro/
 │       └── steering/   # Arquivos .md de steering que o Kiro lê como contexto de projeto
 ├── archetypes/         # Templates de configuração Kiro por tipo de projeto
 │   ├── backend-nest/
+│   ├── bff-fastify/
 │   ├── frontend-react/
 │   └── mobile-flutter/
 ├── powers/             # Powers reutilizáveis empacotados para instalação via Kiro
