@@ -325,12 +325,28 @@ install_powers() {
       copy_files "${power_dir}/steering" "${power_steering_dest}" "*.md"
     fi
 
-    # Copiar mcp.json do power para settings
+    # Merge mcp.json do power no mcp.json principal do projeto
     if [[ -f "${power_dir}/mcp.json" ]]; then
       mkdir -p "${TARGET_DIR}/.kiro/settings"
-      # Merge seria ideal, mas por ora copia como referência
-      cp "${power_dir}/mcp.json" "${TARGET_DIR}/.kiro/settings/${power}-mcp.json"
-      log_success "  ${power} (mcp.json)"
+      local mcp_dest="${TARGET_DIR}/.kiro/settings/mcp.json"
+      if command -v jq &>/dev/null && [[ -f "${mcp_dest}" ]]; then
+        # Merge: mcp.json existente + power (power sobrescreve em caso de conflito)
+        local tmp_mcp
+        tmp_mcp=$(mktemp)
+        jq -s '.[0] * { mcpServers: (.[0].mcpServers * .[1].mcpServers) }' \
+          "${mcp_dest}" "${power_dir}/mcp.json" > "${tmp_mcp}"
+        mv "${tmp_mcp}" "${mcp_dest}"
+        log_success "  ${power} (mcp.json mergeado)"
+      elif command -v jq &>/dev/null; then
+        # Não existe mcp.json ainda — copiar diretamente
+        cp "${power_dir}/mcp.json" "${mcp_dest}"
+        log_success "  ${power} (mcp.json criado)"
+      else
+        # Sem jq — copiar como referência separada
+        cp "${power_dir}/mcp.json" "${TARGET_DIR}/.kiro/settings/${power}-mcp.json"
+        log_warn "  ${power} (mcp.json copiado separado — jq não disponível para merge)"
+      fi
+      ((FILES_COPIED++)) || true
     fi
 
     log_success "  Power instalado: ${power}"

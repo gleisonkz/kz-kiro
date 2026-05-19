@@ -1,5 +1,8 @@
 {
-  "_comment": "Power mb-frontend-react não adiciona MCPs extras. MCPs de frontend (Chrome DevTools, Figma) ficam no archetype.",
-  "_version": "0.1.0",
-  "mcpServers": {}
+  "mcpServers": {
+    "figma": {
+      "type": "http",
+      "url": "https://mcp.figma.com/mcp"
+    }
+  }
 }

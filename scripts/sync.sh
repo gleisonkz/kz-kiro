@@ -316,8 +316,31 @@ sync_powers() {
 
     log_info "  Power: ${power}"
 
+    # Sincronizar steering files do power
     if [[ -d "${power_dir}/steering" ]]; then
       sync_files "${power_dir}/steering" "${TARGET_DIR}/.kiro/steering/powers/${power}" "*.md"
+    fi
+
+    # Merge mcp.json do power no mcp.json principal do projeto
+    if [[ -f "${power_dir}/mcp.json" ]]; then
+      local mcp_dest="${TARGET_DIR}/.kiro/settings/mcp.json"
+      mkdir -p "${TARGET_DIR}/.kiro/settings"
+
+      if [[ "${DRY_RUN}" == true ]]; then
+        log_warn "[DRY-RUN] Mergearia mcp.json do power: ${power}"
+      elif [[ -f "${mcp_dest}" ]]; then
+        local tmp_mcp
+        tmp_mcp=$(mktemp)
+        jq -s '.[0] * { mcpServers: (.[0].mcpServers * .[1].mcpServers) }' \
+          "${mcp_dest}" "${power_dir}/mcp.json" > "${tmp_mcp}"
+        mv "${tmp_mcp}" "${mcp_dest}"
+        log_success "    mcp.json mergeado (power: ${power})"
+        ((FILES_UPDATED++)) || true
+      else
+        cp "${power_dir}/mcp.json" "${mcp_dest}"
+        log_success "    mcp.json criado (power: ${power})"
+        ((FILES_ADDED++)) || true
+      fi
     fi
   done <<< "${power_names}"
 
