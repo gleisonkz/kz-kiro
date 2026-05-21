@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Build After Agent",
+  "description": "Executa build após o agente parar para garantir que o código compila sem erros.",
+  "version": "1",
+  "when": {
+    "type": "agentStop"
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "dotnet build --no-restore"
+  }
+}
