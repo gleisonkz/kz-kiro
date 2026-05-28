@@ -1,13 +1,13 @@
 {
   "enabled": true,
   "name": "Type Check After Agent",
-  "description": "Executa verificação de tipos TypeScript após o agente escrever ou editar arquivos.",
-  "version": "1",
+  "description": "Executa verificação de tipos TypeScript após o agente parar, apenas se houve escrita em arquivos .ts nesta sessão.",
+  "version": "2",
   "when": {
     "type": "agentStop"
   },
   "then": {
     "type": "askAgent",
-    "prompt": "Valide os arquivos alterados com o comando `pnpm typecheck`"
+    "prompt": "Verifique se nesta sessão houve criação ou edição de arquivos `.ts` dentro de `src/`. Se NÃO houve, não faça nada e não comente.\n\nSe HOUVE, execute o comando `pnpm typecheck` e reporte apenas se houver erros de tipo."
   }
 }

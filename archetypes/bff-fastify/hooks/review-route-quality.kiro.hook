@@ -1,14 +1,13 @@
 {
   "enabled": true,
   "name": "Revisar Qualidade de Rota",
-  "version": "1",
-  "description": "Revisa rotas Fastify criadas para garantir conformidade com os padrões RFC-0014: schemas Zod, encapsulamento via plugin, error handling e separação de responsabilidades.",
+  "version": "2",
+  "description": "Revisa rotas Fastify criadas ou editadas para garantir conformidade com os padrões RFC-0014: schemas Zod, encapsulamento via plugin, error handling e separação de responsabilidades. Roda apenas quando houve escrita em arquivos de rotas ou schemas.",
   "when": {
-    "type": "fileCreated",
-    "patterns": ["**/modules/**/routes/*.ts", "**/modules/**/schemas/*.ts"]
+    "type": "agentStop"
   },
   "then": {
     "type": "askAgent",
-    "prompt": "Revise a rota ou schema recém-criado verificando (baseado em RFC-0014):\n\n1. SCHEMAS ZOD: toda rota tem schema Zod para querystring, params, body e response (conforme aplicável), com tipos inferidos via z.infer\n2. SEPARAÇÃO: handlers instanciam o service e delegam — não contêm lógica de orquestração direta nem chamadas a clients\n3. PLUGIN PATTERN: rotas são exportadas como FastifyPluginAsync e registradas via fastify.register()\n4. ERROR HANDLING: erros são tratados pelo error handler global, sem try/catch genérico que engole erros\n5. NOMENCLATURA: arquivo de rota nomeado como <verbo>-<recurso>.ts, schema como <route-name>.schema.ts\n6. PREFIXO: módulo registra rotas com prefixo do domínio (ex: /portfolio)\n\nSe encontrar problemas, sugira correções específicas. Se estiver tudo correto, não diga nada."
+    "prompt": "Verifique se nesta sessão houve criação ou edição de arquivos `.ts` dentro de `src/modules/**/routes/` ou `src/modules/**/schemas/`. Se NÃO houve, não faça nada e não comente.\n\nSe HOUVE, revise TODOS os arquivos de rotas e schemas criados ou editados verificando (baseado em RFC-0014):\n\n1. SCHEMAS ZOD: toda rota tem schema Zod para querystring, params, body e response (conforme aplicável), com tipos inferidos via z.infer\n2. SEPARAÇÃO: handlers instanciam o service e delegam — não contêm lógica de orquestração direta nem chamadas a clients\n3. PLUGIN PATTERN: rotas são exportadas como FastifyPluginAsync e registradas via fastify.register()\n4. ERROR HANDLING: erros são tratados pelo error handler global, sem try/catch genérico que engole erros\n5. NOMENCLATURA: arquivo de rota nomeado como <verbo>-<recurso>.ts, schema como <route-name>.schema.ts\n6. PREFIXO: módulo registra rotas com prefixo do domínio (ex: /portfolio)\n\nSe encontrar problemas, sugira correções específicas. Se estiver tudo correto, não comente."
   }
 }
