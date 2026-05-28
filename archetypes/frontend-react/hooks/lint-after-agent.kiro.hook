@@ -1,14 +1,14 @@
 {
   "enabled": true,
   "name": "Lint After Agent",
-  "description": "Runs lint after agent stops",
-  "version": "1",
+  "description": "Executa lint após o agente parar, apenas se houve escrita em arquivos .ts/.tsx dentro de src/ nesta sessão.",
+  "version": "2",
   "when": {
     "type": "agentStop"
   },
   "then": {
-    "type": "runCommand",
-    "command": "pnpm turbo lint --affected"
+    "type": "askAgent",
+    "prompt": "Verifique se nesta sessão houve criação ou edição de arquivos `.ts` ou `.tsx` dentro de `src/`. Se NÃO houve, não faça nada e não comente.\n\nSe HOUVE, execute o comando `pnpm turbo lint --affected` e reporte apenas se houver erros."
   },
   "workspaceFolderName": "mb-monorepo-frontend",
   "shortName": "lint-after-write"

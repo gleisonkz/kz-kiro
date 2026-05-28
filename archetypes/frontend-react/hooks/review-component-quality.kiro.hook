@@ -1,14 +1,13 @@
 {
   "enabled": true,
   "name": "Revisar Qualidade de Componente",
-  "version": "1",
-  "description": "Revisa componentes React criados para garantir conformidade com os padrões de qualidade do Design System: acessibilidade, tipagem, tokens e composição.",
+  "version": "2",
+  "description": "Revisa componentes React criados ou editados para garantir conformidade com os padrões de qualidade do Design System: acessibilidade, tipagem, tokens e composição. Roda apenas quando houve escrita em arquivos .tsx dentro de ui/ ou components/.",
   "when": {
-    "type": "fileCreated",
-    "patterns": ["**/ui/**/*.tsx", "**/components/**/*.tsx"]
+    "type": "agentStop"
   },
   "then": {
     "type": "askAgent",
-    "prompt": "Revise o componente React recém-criado verificando:\n\n1. ACESSIBILIDADE: usa elementos HTML semânticos, tem atributos ARIA quando necessário, componentes interativos suportam navegação por teclado, não depende apenas de cor para transmitir informação\n2. TIPAGEM: props tipadas com interface dedicada (sufixo Props), TypeScript strict sem any\n3. ESTILIZAÇÃO: usa TailwindCSS com tokens semânticos, sem cores/valores hardcoded\n4. COMPOSIÇÃO: prefere composição sobre herança, componentes complexos usam padrão de namespace quando aplicável\n5. TESTABILIDADE: componentes interativos expõem data-testid estável\n6. EXPORT: usa named export (não default export)\n\nSe encontrar problemas, sugira correções específicas. Se estiver tudo correto, não diga nada."
+    "prompt": "Verifique se nesta sessão houve criação ou edição de arquivos `.tsx` dentro de `**/ui/` ou `**/components/`. Se NÃO houve, não faça nada e não comente.\n\nSe HOUVE, revise TODOS os componentes criados ou editados verificando:\n\n1. ACESSIBILIDADE: usa elementos HTML semânticos, tem atributos ARIA quando necessário, componentes interativos suportam navegação por teclado, não depende apenas de cor para transmitir informação\n2. TIPAGEM: props tipadas com interface dedicada (sufixo Props), TypeScript strict sem any\n3. ESTILIZAÇÃO: usa TailwindCSS com tokens semânticos, sem cores/valores hardcoded\n4. COMPOSIÇÃO: prefere composição sobre herança, componentes complexos usam padrão de namespace quando aplicável\n5. TESTABILIDADE: componentes interativos expõem data-testid estável\n6. EXPORT: usa named export (não default export)\n\nSe encontrar problemas, sugira correções específicas. Se estiver tudo correto, não comente."
   }
 }

@@ -1,14 +1,14 @@
 {
   "enabled": true,
   "name": "Type Check After Write",
-  "version": "1",
-  "description": "Executa verificação de tipos TypeScript após o agente escrever ou editar arquivos.",
+  "version": "2",
+  "description": "Executa verificação de tipos TypeScript após o agente parar, apenas se houve escrita em arquivos .ts/.tsx dentro de src/ nesta sessão.",
   "when": {
     "type": "agentStop"
   },
   "then": {
     "type": "askAgent",
-    "prompt": "Valide os arquivos alterados com o comando `npx tsc --noEmit --pretty`"
+    "prompt": "Verifique se nesta sessão houve criação ou edição de arquivos `.ts` ou `.tsx` dentro de `src/`. Se NÃO houve, não faça nada e não comente.\n\nSe HOUVE, execute o comando `npx tsc --noEmit --pretty` e reporte apenas se houver erros de tipo."
   },
   "workspaceFolderName": "mb-monorepo-frontend",
   "shortName": "typecheck-on-save"

@@ -1,13 +1,13 @@
 {
   "enabled": true,
   "name": "Lembrar Cobertura de Testes",
-  "version": "1",
-  "description": "Ao parar o agente, lembra de verificar se os arquivos criados/editados possuem testes correspondentes.",
+  "version": "2",
+  "description": "Após completar uma task de spec, verifica se os arquivos criados/editados possuem testes correspondentes.",
   "when": {
-    "type": "agentStop"
+    "type": "postTaskExecution"
   },
   "then": {
     "type": "askAgent",
-    "prompt": "Antes de finalizar, verifique se todos os arquivos de código criados ou editados nesta sessão possuem testes correspondentes:\n\n1. Componentes (.tsx em ui/) devem ter .test.tsx\n2. Hooks (.hook.ts em lib/) devem ter .hook.test.ts\n3. Slices (.slice.ts em model/) devem ter .slice.test.ts\n4. Selectors (.selectors.ts em model/) devem ter .selectors.test.ts\n5. APIs (.api.ts em api/) devem ter .api.test.ts\n\nSe algum teste estiver faltando, informe o desenvolvedor quais arquivos precisam de testes. Se todos os testes existem, não diga nada."
+    "prompt": "Verifique se todos os arquivos de código criados ou editados nesta task possuem testes correspondentes:\n\n1. Componentes (.tsx em ui/) devem ter .test.tsx\n2. Hooks (.hook.ts em lib/) devem ter .hook.test.ts\n3. Slices (.slice.ts em model/) devem ter .slice.test.ts\n4. Selectors (.selectors.ts em model/) devem ter .selectors.test.ts\n5. APIs (.api.ts em api/) devem ter .api.test.ts\n\nSe algum teste estiver faltando, informe o desenvolvedor quais arquivos precisam de testes. Se todos os testes existem, não comente."
   }
 }
