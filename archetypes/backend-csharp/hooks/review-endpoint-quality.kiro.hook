@@ -1,14 +1,13 @@
 {
   "enabled": true,
   "name": "Revisar Qualidade de Endpoint",
-  "version": "1",
-  "description": "Revisa endpoints Minimal API criados para garantir conformidade com os padrões: documentação OpenAPI, uso de MediatR, tratamento de erros e separação de responsabilidades.",
+  "version": "2",
+  "description": "Revisa endpoints Minimal API criados ou editados para garantir conformidade com os padrões: documentação OpenAPI, uso de MediatR, tratamento de erros e separação de responsabilidades. Roda apenas quando houve escrita em arquivos *Endpoint*.cs.",
   "when": {
-    "type": "fileCreated",
-    "patterns": ["**/*Endpoint.cs", "**/*Endpoints.cs"]
+    "type": "agentStop"
   },
   "then": {
     "type": "askAgent",
-    "prompt": "Revise o endpoint recém-criado verificando:\n\n1. **DOCUMENTAÇÃO OPENAPI**: o endpoint possui `.WithName()`, `.WithTags()`, `.Produces<T>()` e `.ProducesProblem()` para todos os status codes possíveis\n2. **SEPARAÇÃO**: o handler do endpoint apenas extrai dados da request, cria o command/query e envia via `ISender` (MediatR) — não contém lógica de negócio\n3. **CANCELLATION TOKEN**: `CancellationToken` é recebido como parâmetro e propagado para o `sender.Send()`\n4. **AUTORIZAÇÃO**: endpoint possui `.RequireAuthorization()` (exceto health checks e endpoints públicos explícitos)\n5. **NOMENCLATURA**: arquivo nomeado como `{Verb}{Resource}Endpoint.cs`, classe como `{Verb}{Resource}Endpoint`\n6. **ROTA**: segue o padrão `/api/v1/{resource}` com kebab-case e plural para coleções\n7. **VALIDAÇÃO**: validação de input é feita via FluentValidation no handler (via ValidationBehavior), não no endpoint\n\nSe encontrar problemas, sugira correções específicas. Se estiver tudo correto, não diga nada."
+    "prompt": "Verifique se nesta sessão houve criação ou edição de arquivos que contenham 'Endpoint' ou 'Endpoints' no nome (*.cs). Se NÃO houve, não faça nada e não comente.\n\nSe HOUVE, revise TODOS os endpoints criados ou editados verificando:\n\n1. **DOCUMENTAÇÃO OPENAPI**: o endpoint possui `.WithName()`, `.WithTags()`, `.Produces<T>()` e `.ProducesProblem()` para todos os status codes possíveis\n2. **SEPARAÇÃO**: o handler do endpoint apenas extrai dados da request, cria o command/query e envia via `ISender` (MediatR) — não contém lógica de negócio\n3. **CANCELLATION TOKEN**: `CancellationToken` é recebido como parâmetro e propagado para o `sender.Send()`\n4. **AUTORIZAÇÃO**: endpoint possui `.RequireAuthorization()` (exceto health checks e endpoints públicos explícitos)\n5. **NOMENCLATURA**: arquivo nomeado como `{Verb}{Resource}Endpoint.cs`, classe como `{Verb}{Resource}Endpoint`\n6. **ROTA**: segue o padrão `/api/v1/{resource}` com kebab-case e plural para coleções\n7. **VALIDAÇÃO**: validação de input é feita via FluentValidation no handler (via ValidationBehavior), não no endpoint\n\nSe encontrar problemas, sugira correções específicas. Se estiver tudo correto, não comente."
   }
 }

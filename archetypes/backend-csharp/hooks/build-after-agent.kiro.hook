@@ -1,13 +1,13 @@
 {
   "enabled": true,
   "name": "Build After Agent",
-  "description": "Executa build após o agente parar para garantir que o código compila sem erros.",
-  "version": "1",
+  "description": "Executa build após o agente parar, apenas se houve escrita em arquivos .cs nesta sessão.",
+  "version": "2",
   "when": {
     "type": "agentStop"
   },
   "then": {
-    "type": "runCommand",
-    "command": "dotnet build --no-restore"
+    "type": "askAgent",
+    "prompt": "Verifique se nesta sessão houve criação ou edição de arquivos `.cs`. Se NÃO houve, não faça nada e não comente.\n\nSe HOUVE, execute o comando `dotnet build --no-restore` e reporte apenas se houver erros de compilação."
   }
 }

@@ -1,13 +1,13 @@
 {
   "enabled": true,
   "name": "Executar Testes Após Task",
-  "version": "1",
+  "version": "2",
   "description": "Executa os testes automaticamente após a conclusão de uma task de spec, garantindo que as mudanças não quebraram nada.",
   "when": {
     "type": "postTaskExecution"
   },
   "then": {
     "type": "runCommand",
-    "command": "dotnet test --no-build"
+    "command": "dotnet test"
   }
 }
