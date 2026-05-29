@@ -358,53 +358,84 @@ public record OrderConfirmedEvent(Guid OrderId) : IDomainEvent;
 
 ## Persistência com Entity Framework Core + PostgreSQL
 
-### Database Standards (Guia de Nomeação)
+### Governança de Dados (Chapter de Dados)
 
-- Tabelas: `snake_case`, **plural** — `orders`, `trading_accounts`, `asset_prices`.
-- Colunas: `snake_case` — `customer_id`, `asset_symbol`, `settlement_date`.
-- Toda tabela deve conter `created_at` e `updated_at` (compliance/auditoria).
-- Valores monetários: `DECIMAL(18, 8)` — nunca float/double.
+> ⚠️ Para a referência completa de nomenclatura e regras, consulte o steering `data-governance.md`.
 
-### Entity Configuration (mapeamento snake_case)
+**Resumo das regras:**
+- Tabelas: `snake_case`, **singular**, inglês — `transfer`, `transfer_item`, `customer`.
+- Colunas: `snake_case` com **prefixo de natureza** — `id_transfer`, `nm_customer`, `vl_amount`.
+- Toda tabela deve conter `tmp_creation` (NOT NULL) e `tmp_update` (nullable).
+- Valores monetários: `DECIMAL(18, 8)` com `HasPrecision(18, 8)` — nunca float/double.
+- `HasComment()` obrigatório em pt-BR para toda tabela e coluna.
+- Constraints nomeadas: `pk_{tabela}`, `fk_{origem}_{destino}`, `ix_{tabela}_{coluna}`.
+
+### Migrations como Versionamento
+
+As migrations do EF Core servem como **versionamento** do modelo de dados, não como mecanismo de deploy:
+
+```
+Dev gera migration → Submete para validação → Chapter aprova → DBA executa no banco
+```
+
+- Migrations **NÃO são executadas automaticamente** pelo serviço.
+- Manter migrations no repositório como histórico de alterações.
+- Usar como insumo para o DBA na criação/alteração de objetos.
+- Gerar pacote de validação (DDL + Dicionário + Diagrama ER) antes de submeter ao chapter.
+
+### Entity Configuration (mapeamento com governança de dados)
 
 ```csharp
 public class OrderConfiguration : IEntityTypeConfiguration<Order>
 {
     public void Configure(EntityTypeBuilder<Order> builder)
     {
-        builder.ToTable("orders");
+        builder.ToTable("order")
+            .HasComment("Ordem de compra ou venda de ativos financeiros.");
 
-        builder.HasKey(o => o.Id);
-        builder.Property(o => o.Id).HasColumnName("id");
+        builder.HasKey(o => o.Id)
+            .HasName("pk_order");
+
+        builder.Property(o => o.Id)
+            .HasColumnName("id_order")
+            .HasComment("Identificador único da ordem");
 
         builder.Property(o => o.AccountId)
-            .HasColumnName("account_id")
+            .HasColumnName("id_account")
             .IsRequired()
-            .HasMaxLength(50);
+            .HasMaxLength(50)
+            .HasComment("Identificador da conta do cliente");
 
         builder.Property(o => o.Ticker)
-            .HasColumnName("ticker")
+            .HasColumnName("cd_ticker")
             .IsRequired()
-            .HasMaxLength(10);
+            .HasMaxLength(10)
+            .HasComment("Código do ativo negociado");
 
         builder.Property(o => o.Quantity)
-            .HasColumnName("quantity")
-            .HasPrecision(18, 8);
+            .HasColumnName("qt_asset")
+            .HasPrecision(18, 8)
+            .HasComment("Quantidade de ativos na ordem");
 
         builder.Property(o => o.Status)
-            .HasColumnName("status")
-            .HasConversion<string>()
-            .HasMaxLength(20);
+            .HasColumnName("st_order")
+            .HasConversion<int>()
+            .HasComment("Situação da ordem: 1=Pendente, 2=Confirmada, 3=Executada, 4=Cancelada");
 
         builder.Property(o => o.CreatedAt)
-            .HasColumnName("created_at")
-            .IsRequired();
+            .HasColumnName("tmp_creation")
+            .IsRequired()
+            .HasComment("Data e hora da criação do registro");
 
         builder.Property(o => o.UpdatedAt)
-            .HasColumnName("updated_at");
+            .HasColumnName("tmp_update")
+            .HasComment("Data e hora da última atualização do registro");
 
         builder.HasIndex(o => o.AccountId)
-            .HasDatabaseName("ix_orders_account_id");
+            .HasDatabaseName("ix_order_id_account");
+
+        builder.HasIndex(o => new { o.AccountId, o.Status })
+            .HasDatabaseName("ix_order_id_account_st_order");
     }
 }
 ```

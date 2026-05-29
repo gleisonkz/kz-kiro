@@ -281,26 +281,53 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
 {
     public void Configure(EntityTypeBuilder<Order> builder)
     {
-        builder.ToTable("Orders");
+        builder.ToTable("order")
+            .HasComment("Ordem de compra ou venda de ativos financeiros.");
 
-        builder.HasKey(o => o.Id);
+        builder.HasKey(o => o.Id)
+            .HasName("pk_order");
+
+        builder.Property(o => o.Id)
+            .HasColumnName("id_order")
+            .HasComment("Identificador único da ordem");
 
         builder.Property(o => o.AccountId)
+            .HasColumnName("id_account")
             .IsRequired()
-            .HasMaxLength(50);
+            .HasMaxLength(50)
+            .HasComment("Identificador da conta do cliente");
 
         builder.Property(o => o.Ticker)
+            .HasColumnName("cd_ticker")
             .IsRequired()
-            .HasMaxLength(10);
+            .HasMaxLength(10)
+            .HasComment("Código do ativo negociado");
 
         builder.Property(o => o.Quantity)
-            .HasPrecision(18, 8);
+            .HasColumnName("qt_asset")
+            .HasPrecision(18, 8)
+            .HasComment("Quantidade de ativos na ordem");
 
         builder.Property(o => o.Status)
-            .HasConversion<string>()
-            .HasMaxLength(20);
+            .HasColumnName("st_order")
+            .HasConversion<int>()
+            .HasComment("Situação da ordem: 1=Pendente, 2=Confirmada, 3=Executada, 4=Cancelada");
 
-        builder.HasIndex(o => o.AccountId);
+        builder.Property(o => o.CreatedAt)
+            .HasColumnName("tmp_creation")
+            .IsRequired()
+            .HasComment("Data e hora da criação do registro");
+
+        builder.Property(o => o.UpdatedAt)
+            .HasColumnName("tmp_update")
+            .HasComment("Data e hora da última atualização do registro");
+
+        // Índices
+        builder.HasIndex(o => o.AccountId)
+            .HasDatabaseName("ix_order_id_account");
+
+        builder.HasIndex(o => new { o.AccountId, o.Status })
+            .HasDatabaseName("ix_order_id_account_st_order");
     }
 }
 ```

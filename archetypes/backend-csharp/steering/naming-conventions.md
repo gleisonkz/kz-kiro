@@ -24,33 +24,63 @@
 
 ---
 
-## Database Standards (Guia de Nomeação)
+## Database Standards (Governança de Dados)
+
+> ⚠️ **Atenção:** As regras de banco de dados seguem o padrão definido pelo chapter de dados.
+> Consulte o steering `data-governance.md` para a referência completa.
+
+### Duas camadas, duas convenções
+
+| Camada | Convenção | Exemplo |
+|---|---|---|
+| Código C# (propriedades, classes) | `PascalCase` (.NET standard) | `BlogId`, `CustomerName`, `BirthDate` |
+| Banco de dados (tabelas e colunas) | `snake_case` com prefixo de natureza | `id_blog`, `nm_customer`, `dt_birth` |
 
 ### Tabelas
 
-- **`snake_case`**, sempre no **plural**.
-- Exemplos: `orders`, `transactions`, `trading_accounts`, `asset_prices`.
+- **`snake_case`**, sempre no **singular**, em **inglês**.
+- Exemplos: `customer`, `transfer`, `transfer_item`, `tax_invoice`.
 
 ### Colunas
 
-- **`snake_case`**.
-- Exemplos: `id`, `customer_id`, `asset_symbol`, `settlement_date`, `last_price`, `bid_price`.
+- **`snake_case`** com **prefixo de natureza obrigatório**.
+- Formato: `{prefixo_natureza}_{nome}`.
+- Exemplos: `id_customer`, `nm_customer`, `vl_amount`, `dt_settlement`, `st_order`.
+
+### Prefixos de natureza
+
+| Prefixo | Significado | Exemplo |
+|---|---|---|
+| `id` | Identificador | `id_transfer`, `id_account` |
+| `nm` | Nome | `nm_customer`, `nm_asset` |
+| `cd` | Código | `cd_currency`, `cd_asset` |
+| `ds` | Descrição | `ds_observation` |
+| `dt` | Data | `dt_settlement`, `dt_birth` |
+| `tmp` | Timestamp | `tmp_creation`, `tmp_update` |
+| `vl` | Valor monetário | `vl_amount`, `vl_unit_price` |
+| `qt` | Quantidade | `qt_asset`, `qt_shares` |
+| `st` | Status/Situação | `st_order`, `st_transfer` |
+| `pc` | Percentual | `pc_fee`, `pc_tax` |
+| `nu` | Número | `nu_sequence` |
+| `in` | Indicador | `in_active`, `in_blocked` |
 
 ### Regras obrigatórias
 
-- Toda tabela deve conter `created_at` e `updated_at` (rastreabilidade de compliance).
+- Toda tabela deve conter `tmp_creation` (NOT NULL) e `tmp_update` (nullable) para auditoria.
 - Valores monetários: `DECIMAL(18, 8)` — **nunca** `float` ou `double`.
-- Índices: `ix_{table}_{column}` — ex.: `ix_orders_account_id`.
-- Foreign keys: `fk_{table}_{referenced_table}` — ex.: `fk_orders_accounts`.
+- Índices: `ix_{tabela}_{coluna}` — ex.: `ix_transfer_id_source_account`.
+- Foreign keys: `fk_{tabela_origem}_{tabela_destino}` — ex.: `fk_transfer_item_transfer`.
+- Primary keys: `pk_{tabela}` — ex.: `pk_transfer`.
+- `HasComment()` obrigatório em pt-BR para toda tabela e coluna.
 
 ### Exemplos
 
 | Entity | Table Name | Column Examples |
 |---|---|---|
-| Orders | `orders` | `id`, `customer_id`, `asset_symbol`, `side` |
-| Transactions | `transactions` | `amount`, `currency_code`, `settlement_date` |
-| Accounts | `trading_accounts` | `balance`, `margin_limit`, `is_blocked` |
-| Market Data | `asset_prices` | `last_price`, `bid_price`, `ask_price`, `updated_at` |
+| Transfer | `transfer` | `id_transfer`, `id_source_account`, `vl_amount`, `st_transfer` |
+| TransferItem | `transfer_item` | `id_transfer_item`, `id_transfer`, `cd_asset`, `qt_asset` |
+| Customer | `customer` | `id_customer`, `nm_customer`, `cd_document`, `dt_birth` |
+| Account | `account` | `id_account`, `nm_account`, `vl_balance`, `in_blocked` |
 
 ---
 
