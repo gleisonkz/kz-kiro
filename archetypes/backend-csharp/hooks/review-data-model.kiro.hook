@@ -1,0 +1,14 @@
+{
+  "enabled": true,
+  "name": "Revisar Modelo de Dados",
+  "version": "1",
+  "description": "Valida em tempo real se o mapeamento EF Core (Entity Configuration) segue os padrões do chapter de dados: nomenclatura snake_case com prefixo de natureza, HasComment em pt-BR, tipos corretos e constraints nomeadas.",
+  "when": {
+    "type": "preToolUse",
+    "toolTypes": ["write"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Verifique se a operação de escrita atual envolve um arquivo que termina com `Configuration.cs` dentro de um diretório `Configurations/` ou `Persistence/`. Se NÃO envolve, não faça nada e permita a operação.\n\nSe ENVOLVE um arquivo de Entity Configuration, valide o conteúdo contra os padrões do chapter de dados:\n\n1. **Tabela**: nome em `snake_case`, singular, inglês. Usar `ToTable(\"nome_tabela\")` — ex.: `transfer`, `transfer_item`.\n\n2. **HasComment na tabela**: `HasComment()` preenchido em pt-BR descrevendo o que é a entidade.\n\n3. **Colunas com prefixo de natureza**: toda coluna deve usar `HasColumnName()` com formato `{prefixo}_{nome}` em snake_case:\n   - `id_` para identificadores (PKs, FKs)\n   - `nm_` para nomes\n   - `cd_` para códigos\n   - `ds_` para descrições\n   - `dt_` para datas\n   - `hr_` para horas\n   - `tmp_` para timestamps\n   - `vl_` para valores monetários\n   - `qt_` para quantidades\n   - `pc_` para percentuais\n   - `st_` para status/situação\n   - `nu_` para números\n   - `in_` para indicadores/flags\n\n4. **HasComment em colunas**: toda propriedade mapeada deve ter `HasComment()` em pt-BR.\n\n5. **Valores monetários**: propriedades `decimal` que representam dinheiro devem ter `HasPrecision(18, 8)`.\n\n6. **Campos de auditoria**: a tabela deve mapear `tmp_creation` (NOT NULL) e `tmp_update` (nullable).\n\n7. **Chave primária**: deve ter `HasName(\"pk_{tabela}\")`.\n\n8. **Foreign keys**: devem ter `HasConstraintName(\"fk_{tabela_origem}_{tabela_destino}\")`.\n\n9. **Índices**: devem ter `HasDatabaseName(\"ix_{tabela}_{coluna}\")` seguindo o padrão.\n\n10. **Constraints nomeadas**: PK como `pk_{tabela}`, FK como `fk_{origem}_{destino}`.\n\nSe encontrar violações, liste-as e sugira as correções necessárias ANTES de permitir a escrita. Se estiver tudo conforme, permita a operação sem comentários."
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "enabled": true,
+  "name": "Lembrete de Migration",
+  "version": "1",
+  "description": "Após criação ou edição de Entity Configurations, lembra o desenvolvedor de gerar a migration e o pacote de validação para o chapter de dados.",
+  "when": {
+    "type": "postToolUse",
+    "toolTypes": ["write"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Verifique se a operação de escrita que acabou de ocorrer envolveu um arquivo que termina com `Configuration.cs` dentro de um diretório `Configurations/` ou `Persistence/`. Se NÃO envolveu, não faça nada e não comente.\n\nSe ENVOLVEU um arquivo de Entity Configuration, lembre o desenvolvedor com a seguinte mensagem:\n\n---\n\n📋 **Lembrete: Modelo de dados alterado**\n\nVocê alterou uma Entity Configuration. Para manter o fluxo de governança de dados:\n\n1. **Gerar a migration:**\n   ```bash\n   dotnet ef migrations add <NomeMigration> --project src/{ServiceName}.Infrastructure --startup-project src/{ServiceName}.Api\n   ```\n\n2. **Gerar o pacote de validação:** use a skill `generate-validation-package` para criar DDL, dicionário e diagrama ER.\n\n3. **Submeter para validação** do chapter de dados antes de solicitar execução ao DBA.\n\n⚠️ **Importante:** As migrations NÃO devem ser executadas automaticamente pelo serviço. O DBA executa o DDL após aprovação do chapter.\n\n---"
+  }
+}
