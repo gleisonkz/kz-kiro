@@ -1,3 +1,8 @@
+---
+inclusion: fileMatch
+fileMatchPattern: "**/*.md"
+---
+
 # Baseline de Documentação — MonteBravo
 
 > **Steering File | Baseline Global | Versão: 0.1.0**
@@ -52,9 +57,7 @@ Pasta de documentação técnica com:
 
 ## Padrões de Escrita
 
-> TODO: Definir os padrões de escrita para documentação técnica da organização.
-
-- **Idioma**: TODO (definir se é português, inglês ou ambos por contexto).
+- **Idioma**: Português.
 - **Tom**: Direto, objetivo, sem ambiguidade.
 - **Formato**: Markdown preferido para documentação técnica.
 - **Comprimento**: Adequado ao conteúdo — nem muito curto (sem contexto) nem muito longo (difícil de manter).

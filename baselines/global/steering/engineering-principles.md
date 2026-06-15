@@ -1,3 +1,7 @@
+---
+inclusion: manual
+---
+
 # Princípios de Engenharia — MonteBravo
 
 > **Steering File | Baseline Global | Versão: 0.2.0**

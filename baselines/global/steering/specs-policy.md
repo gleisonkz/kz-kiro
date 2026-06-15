@@ -1,3 +1,7 @@
+---
+inclusion: manual
+---
+
 # Política de Especificações — MonteBravo
 
 > **Steering File | Baseline Global | Versão: 0.1.0**

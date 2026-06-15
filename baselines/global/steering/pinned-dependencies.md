@@ -1,3 +1,8 @@
+---
+inclusion: fileMatch
+fileMatchPattern: "**/package.json"
+---
+
 # Dependências Pinadas — Regra Global Obrigatória
 
 Esta regra é **inegociável** e se aplica a **todos** os projetos, independentemente do archetype, stack ou linguagem.

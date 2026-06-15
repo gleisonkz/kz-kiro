@@ -1,3 +1,7 @@
+---
+inclusion: manual
+---
+
 # Baseline de Segurança — MonteBravo
 
 > **Steering File | Baseline Global | Versão: 0.2.0**
