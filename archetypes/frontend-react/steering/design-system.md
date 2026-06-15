@@ -1,3 +1,8 @@
+---
+inclusion: fileMatch
+fileMatchPattern: "**/*.tsx, **/shared/ui/**, **/*.variants.ts"
+---
+
 # Design System — Arquitetura, Componentes e Qualidade
 
 > **Steering File | Archetype: frontend-react | Versão: 0.1.0**

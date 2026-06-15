@@ -1,3 +1,7 @@
+---
+inclusion: auto
+---
+
 # Stack Base e Ferramental — Frontend React
 
 > **Steering File | Archetype: frontend-react | Versão: 0.1.0**

@@ -1,3 +1,8 @@
+---
+inclusion: fileMatch
+fileMatchPattern: "**/modules/**, **/src/app/**"
+---
+
 # Arquitetura de Aplicações Frontend
 
 > **Steering File | Archetype: frontend-react | Versão: 0.2.0**

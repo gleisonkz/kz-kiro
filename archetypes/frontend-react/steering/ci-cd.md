@@ -1,3 +1,8 @@
+---
+inclusion: fileMatch
+fileMatchPattern: "**/.github/**, **/turbo.json, **/Dockerfile*"
+---
+
 # Pipelines e Deploy — Frontend React
 
 > **Steering File | Archetype: frontend-react | Versão: 0.1.0**
