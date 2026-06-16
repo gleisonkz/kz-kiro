@@ -1,7 +1,17 @@
 # Changelog
 
-## 0.1.0 (2026-06-15)
+Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 
-### Refatoração
+O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
+e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
-- Refinar metadados de inclusão dos steering files
+## [0.1.0] - 2025-06-15
+
+### Added
+
+- Steering files: engineering-principles, security-baseline, specs-policy, documentation-baseline, pinned-dependencies
+- Configuração MCP com servidor Atlassian Rovo homologado
+- Hook global kiro-doctor para diagnóstico de conformidade
+- Scripts de automação: bootstrap.sh, sync.sh, doctor.sh
+- Arquivo VERSION com versionamento semântico
+- Mecanismo de exceções no doctor.sh
