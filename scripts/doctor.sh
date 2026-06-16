@@ -79,6 +79,121 @@ add_json_result() {
 }
 
 # -----------------------------------------------------------------------------
+# Verificação de exceções
+# -----------------------------------------------------------------------------
+# check_exception recebe:
+#   $1 = rule (formato: <componente>.<nome-da-regra>)
+#   $2 = category (para JSON result: baseline, archetype, etc.)
+#   $3 = message (mensagem para o relatório quando exceção é válida)
+#
+# Retorna:
+#   0 — exceção válida encontrada (artefato coberto, reporta INFO)
+#   1 — nenhuma exceção válida encontrada (continuar verificação normal)
+#
+# Efeitos colaterais:
+#   - Se exceção válida: emite INFO e add_json_result "info"
+#   - Se exceção expirada: emite WARN e add_json_result "warn"
+#     (e retorna 1 pois exceção expirada não cobre mais o artefato)
+
+check_exception() {
+  local rule="$1"
+  local category="$2"
+  local message="$3"
+  local manifest_path="${TARGET_DIR}/kiro-manifest.json"
+
+  # Pré-requisitos: jq disponível e manifest existente
+  if ! command -v jq &>/dev/null; then
+    return 1
+  fi
+
+  if [[ ! -f "${manifest_path}" ]]; then
+    return 1
+  fi
+
+  # Buscar exceção com a rule correspondente
+  local exception
+  exception=$(jq -r --arg rule "${rule}" '
+    .exceptions // [] | map(select(.rule == $rule)) | first // empty
+  ' "${manifest_path}" 2>/dev/null) || true
+
+  if [[ -z "${exception}" ]]; then
+    return 1
+  fi
+
+  # Validar campos obrigatórios da exceção
+  local exc_rule exc_reason exc_approved_by exc_approved_at exc_review_date
+  exc_rule=$(echo "${exception}" | jq -r '.rule // empty' 2>/dev/null)
+  exc_reason=$(echo "${exception}" | jq -r '.reason // empty' 2>/dev/null)
+  exc_approved_by=$(echo "${exception}" | jq -r '.approved_by // empty' 2>/dev/null)
+  exc_approved_at=$(echo "${exception}" | jq -r '.approved_at // empty' 2>/dev/null)
+  exc_review_date=$(echo "${exception}" | jq -r '.review_date // empty' 2>/dev/null)
+
+  # Validar rule no formato <componente>.<nome> (aceita múltiplos níveis: archetype.skills.nome)
+  if [[ ! "${exc_rule}" =~ ^[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)+$ ]]; then
+    return 1
+  fi
+
+  # Validar reason (20-500 caracteres)
+  local reason_len=${#exc_reason}
+  if [[ ${reason_len} -lt 20 || ${reason_len} -gt 500 ]]; then
+    return 1
+  fi
+
+  # Validar approved_by (não-vazio)
+  if [[ -z "${exc_approved_by}" ]]; then
+    return 1
+  fi
+
+  # Validar approved_at (ISO 8601)
+  if [[ ! "${exc_approved_at}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}(T[0-9]{2}:[0-9]{2}:[0-9]{2}(Z|[+-][0-9]{2}:[0-9]{2})?)?$ ]]; then
+    return 1
+  fi
+
+  # Validar review_date (ISO 8601)
+  if [[ ! "${exc_review_date}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}(T[0-9]{2}:[0-9]{2}:[0-9]{2}(Z|[+-][0-9]{2}:[0-9]{2})?)?$ ]]; then
+    return 1
+  fi
+
+  # Validar que review_date não excede 90 dias de approved_at
+  local approved_epoch review_epoch
+  if date --version &>/dev/null 2>&1; then
+    # GNU date
+    approved_epoch=$(date -d "${exc_approved_at}" +%s 2>/dev/null) || return 1
+    review_epoch=$(date -d "${exc_review_date}" +%s 2>/dev/null) || return 1
+  else
+    # BSD/macOS date
+    # Extrair apenas a parte de data para compatibilidade
+    local approved_date_part="${exc_approved_at%%T*}"
+    local review_date_part="${exc_review_date%%T*}"
+    approved_epoch=$(date -j -f "%Y-%m-%d" "${approved_date_part}" +%s 2>/dev/null) || return 1
+    review_epoch=$(date -j -f "%Y-%m-%d" "${review_date_part}" +%s 2>/dev/null) || return 1
+  fi
+
+  local max_seconds=$((90 * 24 * 60 * 60))
+  local diff_seconds=$((review_epoch - approved_epoch))
+
+  if [[ ${diff_seconds} -gt ${max_seconds} ]]; then
+    return 1
+  fi
+
+  # Verificar se a exceção expirou (review_date < data corrente)
+  local current_epoch
+  current_epoch=$(date +%s)
+
+  if [[ ${review_epoch} -lt ${current_epoch} ]]; then
+    # Exceção expirada — reportar WARN
+    log_warn "Exceção expirada para '${rule}': review_date ${exc_review_date} ultrapassada. Revisão necessária."
+    add_json_result "warn" "${category}" "Exceção expirada: ${rule} (review_date: ${exc_review_date})"
+    return 1
+  fi
+
+  # Exceção válida — reportar INFO em vez de FAIL/WARN
+  log_info "Exceção válida para '${rule}': ${exc_reason:0:60}..."
+  add_json_result "info" "${category}" "${message} (exceção: ${rule})"
+  return 0
+}
+
+# -----------------------------------------------------------------------------
 # Validação de argumentos
 # -----------------------------------------------------------------------------
 
@@ -152,6 +267,9 @@ check_manifest() {
 
         log_pass "Powers declarados: ${has_powers:-0}"
         add_json_result "pass" "manifest" "Powers declarados: ${has_powers:-0}"
+
+        # Validar schema das exceções
+        validate_exceptions
       else
         log_fail "kiro-manifest.json contém JSON inválido."
         add_json_result "fail" "manifest" "JSON inválido"
@@ -164,6 +282,128 @@ check_manifest() {
     log_fail "kiro-manifest.json não encontrado. Execute bootstrap.sh primeiro."
     add_json_result "fail" "manifest" "kiro-manifest.json não encontrado"
   fi
+}
+
+validate_exceptions() {
+  local manifest_path="${TARGET_DIR}/kiro-manifest.json"
+
+  # Requer jq e manifest existente
+  if ! command -v jq &>/dev/null || [[ ! -f "${manifest_path}" ]]; then
+    return
+  fi
+
+  # Verificar se o array exceptions existe
+  local exception_count
+  exception_count=$(jq -r '.exceptions | length // 0' "${manifest_path}" 2>/dev/null)
+
+  if [[ "${exception_count}" -eq 0 || "${exception_count}" == "null" ]]; then
+    return
+  fi
+
+  log_info "Validando schema de ${exception_count} exceção(ões)..."
+
+  local i=0
+  while [[ ${i} -lt ${exception_count} ]]; do
+    local rule reason approved_by approved_at review_date
+    rule=$(jq -r ".exceptions[${i}].rule // empty" "${manifest_path}" 2>/dev/null)
+    reason=$(jq -r ".exceptions[${i}].reason // empty" "${manifest_path}" 2>/dev/null)
+    approved_by=$(jq -r ".exceptions[${i}].approved_by // empty" "${manifest_path}" 2>/dev/null)
+    approved_at=$(jq -r ".exceptions[${i}].approved_at // empty" "${manifest_path}" 2>/dev/null)
+    review_date=$(jq -r ".exceptions[${i}].review_date // empty" "${manifest_path}" 2>/dev/null)
+
+    local exception_label="exceptions[${i}]"
+    local has_error=false
+
+    # Validar rule: formato <componente>.<nome>
+    if [[ -z "${rule}" ]]; then
+      log_warn "${exception_label}: campo 'rule' ausente ou vazio"
+      add_json_result "warn" "manifest" "${exception_label}: campo 'rule' ausente ou vazio"
+      has_error=true
+    elif [[ "${rule}" != *.* ]]; then
+      log_warn "${exception_label}: campo 'rule' não está no formato <componente>.<nome> (valor: '${rule}')"
+      add_json_result "warn" "manifest" "${exception_label}: campo 'rule' formato inválido"
+      has_error=true
+    fi
+
+    # Validar reason: 20-500 caracteres
+    if [[ -z "${reason}" ]]; then
+      log_warn "${exception_label}: campo 'reason' ausente ou vazio"
+      add_json_result "warn" "manifest" "${exception_label}: campo 'reason' ausente ou vazio"
+      has_error=true
+    else
+      local reason_len=${#reason}
+      if [[ ${reason_len} -lt 20 ]]; then
+        log_warn "${exception_label}: campo 'reason' muito curto (${reason_len} chars, mínimo 20)"
+        add_json_result "warn" "manifest" "${exception_label}: reason muito curto (${reason_len} chars)"
+        has_error=true
+      elif [[ ${reason_len} -gt 500 ]]; then
+        log_warn "${exception_label}: campo 'reason' muito longo (${reason_len} chars, máximo 500)"
+        add_json_result "warn" "manifest" "${exception_label}: reason muito longo (${reason_len} chars)"
+        has_error=true
+      fi
+    fi
+
+    # Validar approved_by: não-vazio
+    if [[ -z "${approved_by}" ]]; then
+      log_warn "${exception_label}: campo 'approved_by' ausente ou vazio"
+      add_json_result "warn" "manifest" "${exception_label}: campo 'approved_by' ausente ou vazio"
+      has_error=true
+    fi
+
+    # Validar approved_at: ISO 8601 (aceita YYYY-MM-DD ou YYYY-MM-DDTHH:MM:SSZ)
+    if [[ -z "${approved_at}" ]]; then
+      log_warn "${exception_label}: campo 'approved_at' ausente ou vazio"
+      add_json_result "warn" "manifest" "${exception_label}: campo 'approved_at' ausente ou vazio"
+      has_error=true
+    elif ! echo "${approved_at}" | grep -qE '^[0-9]{4}-[0-9]{2}-[0-9]{2}(T[0-9]{2}:[0-9]{2}:[0-9]{2}(Z|[+-][0-9]{2}:[0-9]{2})?)?$'; then
+      log_warn "${exception_label}: campo 'approved_at' não é ISO 8601 válido (valor: '${approved_at}')"
+      add_json_result "warn" "manifest" "${exception_label}: approved_at não é ISO 8601 válido"
+      has_error=true
+    fi
+
+    # Validar review_date: ISO 8601 e max 90 dias de approved_at
+    if [[ -z "${review_date}" ]]; then
+      log_warn "${exception_label}: campo 'review_date' ausente ou vazio"
+      add_json_result "warn" "manifest" "${exception_label}: campo 'review_date' ausente ou vazio"
+      has_error=true
+    elif ! echo "${review_date}" | grep -qE '^[0-9]{4}-[0-9]{2}-[0-9]{2}(T[0-9]{2}:[0-9]{2}:[0-9]{2}(Z|[+-][0-9]{2}:[0-9]{2}))?$'; then
+      log_warn "${exception_label}: campo 'review_date' não é ISO 8601 válido (valor: '${review_date}')"
+      add_json_result "warn" "manifest" "${exception_label}: review_date não é ISO 8601 válido"
+      has_error=true
+    elif [[ -n "${approved_at}" ]] && echo "${approved_at}" | grep -qE '^[0-9]{4}-[0-9]{2}-[0-9]{2}(T[0-9]{2}:[0-9]{2}:[0-9]{2}(Z|[+-][0-9]{2}:[0-9]{2})?)?$'; then
+      # Calcular diferença entre review_date e approved_at (max 90 dias)
+      local approved_epoch review_epoch
+      # Extrair apenas a parte da data para cálculo
+      local approved_date_part="${approved_at%%T*}"
+      local review_date_part="${review_date%%T*}"
+
+      if date -j -f "%Y-%m-%d" "${approved_date_part}" "+%s" &>/dev/null 2>&1; then
+        # macOS date
+        approved_epoch=$(date -j -f "%Y-%m-%d" "${approved_date_part}" "+%s" 2>/dev/null)
+        review_epoch=$(date -j -f "%Y-%m-%d" "${review_date_part}" "+%s" 2>/dev/null)
+      elif date -d "${approved_date_part}" "+%s" &>/dev/null 2>&1; then
+        # GNU date
+        approved_epoch=$(date -d "${approved_date_part}" "+%s" 2>/dev/null)
+        review_epoch=$(date -d "${review_date_part}" "+%s" 2>/dev/null)
+      fi
+
+      if [[ -n "${approved_epoch:-}" && -n "${review_epoch:-}" ]]; then
+        local diff_days=$(( (review_epoch - approved_epoch) / 86400 ))
+        if [[ ${diff_days} -gt 90 ]]; then
+          log_warn "${exception_label}: 'review_date' excede 90 dias de 'approved_at' (${diff_days} dias)"
+          add_json_result "warn" "manifest" "${exception_label}: review_date excede 90 dias (${diff_days} dias)"
+          has_error=true
+        fi
+      fi
+    fi
+
+    if [[ "${has_error}" == false ]]; then
+      log_pass "${exception_label}: schema válido (rule: ${rule})"
+      add_json_result "pass" "manifest" "${exception_label}: schema válido"
+    fi
+
+    ((i++)) || true
+  done
 }
 
 check_baseline() {
@@ -190,6 +430,9 @@ check_baseline() {
     fi
 
     for f in "${required_files[@]}"; do
+      # Derivar rule name para exceções: baseline.<nome-sem-extensão>
+      local rule_name="baseline.${f%.md}"
+
       if [[ -f "${kiro_steering_dir}/${f}" ]]; then
         # Verificar se está atualizado
         if [[ -f "${baseline_dir}/${f}" ]]; then
@@ -197,6 +440,10 @@ check_baseline() {
             log_pass "Atualizado: ${f}"
             add_json_result "pass" "baseline" "Atualizado: ${f}"
           else
+            # Verificar se há exceção válida cobrindo este artefato
+            if check_exception "${rule_name}" "baseline" "Desatualizado com exceção: ${f}"; then
+              continue
+            fi
             log_warn "Desatualizado: ${f} (difere da versão no mb-kiro)"
             local diff_output
             diff_output=$(diff --unified=3 "${baseline_dir}/${f}" "${kiro_steering_dir}/${f}" 2>/dev/null || true)
@@ -213,6 +460,10 @@ check_baseline() {
           add_json_result "pass" "baseline" "Presente: ${f}"
         fi
       else
+        # Verificar se há exceção válida cobrindo este artefato ausente
+        if check_exception "${rule_name}" "baseline" "Ausente com exceção: ${f}"; then
+          continue
+        fi
         log_fail "Ausente: ${f}"
         add_json_result "fail" "baseline" "Ausente: ${f}"
       fi
@@ -279,28 +530,46 @@ check_archetype() {
         log_pass "${dir_name}: ${dest_count}/${src_count} arquivos presentes"
         add_json_result "pass" "archetype" "${dir_name}: ${dest_count}/${src_count}"
       else
-        log_warn "${dir_name}: ${dest_count}/${src_count} arquivos (faltam $(( src_count - dest_count )))"
+        # Verificar se cada arquivo ausente está coberto por exceção
         local missing_files=""
+        local all_covered=true
         for src_file in "${src_dir}"/${pattern}; do
           [[ ! -f "${src_file}" ]] && continue
           local src_fname
           src_fname=$(basename "${src_file}")
           [[ "${src_fname}" == "README.md" ]] && continue
           if [[ ! -f "${dest_dir}/${src_fname}" ]]; then
+            local archetype_rule="archetype.${dir_name}.${src_fname%.*}"
+            if check_exception "${archetype_rule}" "archetype" "Ausente com exceção: ${dir_name}/${src_fname}"; then
+              continue
+            fi
             missing_files="${missing_files}${src_fname}, "
+            all_covered=false
           fi
         done
         missing_files="${missing_files%, }"
-        add_json_result "warn" "archetype" "${dir_name}: ${dest_count}/${src_count} (incompleto)" "Ausentes: ${missing_files}"
-        if [[ "${VERBOSE}" == true ]]; then
-          log_detail "Arquivos ausentes em .kiro/${dir_name}/:"
-          IFS=', ' read -ra missing_arr <<< "${missing_files}"
-          for mf in "${missing_arr[@]}"; do
-            [[ -n "${mf}" ]] && log_detail "  - ${mf}"
-          done
+
+        if [[ "${all_covered}" == true ]]; then
+          # Todos os ausentes cobertos por exceções — já reportados como INFO
+          :
+        else
+          log_warn "${dir_name}: ${dest_count}/${src_count} arquivos (faltam $(( src_count - dest_count )))"
+          add_json_result "warn" "archetype" "${dir_name}: ${dest_count}/${src_count} (incompleto)" "Ausentes: ${missing_files}"
+          if [[ "${VERBOSE}" == true ]]; then
+            log_detail "Arquivos ausentes em .kiro/${dir_name}/:"
+            IFS=', ' read -ra missing_arr <<< "${missing_files}"
+            for mf in "${missing_arr[@]}"; do
+              [[ -n "${mf}" ]] && log_detail "  - ${mf}"
+            done
+          fi
         fi
       fi
     else
+      # Verificar se há exceção válida cobrindo o diretório inteiro
+      local dir_rule="archetype.${dir_name}"
+      if check_exception "${dir_rule}" "archetype" "Diretório ausente com exceção: ${dir_name}"; then
+        continue
+      fi
       log_fail "${dir_name}: diretório .kiro/${dir_name}/ não encontrado"
       add_json_result "fail" "archetype" "${dir_name}: diretório ausente"
     fi
