@@ -1,14 +1,14 @@
 #!/usr/bin/env bats
 # =============================================================================
-# Property 9: Precedência de version bump
-# Feature: archetype-frontend-react, Property 9: Precedência de version bump
+# Property 7: Precedência de version bump
+# Feature: archetype-bff-fastify, Property 7: Precedência de version bump
 # =============================================================================
 # Para qualquer conjunto de mudanças em uma release que se enquadram em múltiplas
 # categorias de incremento, a função de cálculo de bump SHALL retornar apenas o
 # incremento de maior precedência (MAJOR > MINOR > PATCH).
 #
-# **Validates: Requirements 10.8**
-# Mínimo 20 iterações por property test.
+# **Validates: Requirements 10.3, 10.4, 10.5, 10.6**
+# Mínimo 100 iterações por property test.
 
 setup() {
   load '../helpers/setup'
@@ -23,10 +23,11 @@ teardown() {
 }
 
 # --- Categorias de mudanças e seus bumps correspondentes ---
-# Conforme Requisitos 10.5, 10.6, 10.7:
-# MAJOR: steering file removido, steering file renomeado, hook removido
-# MINOR: novo steering file adicionado, nova diretriz incluída em steering existente
-# PATCH: correção de texto, refinamento de prompt, ajuste de valor em MCP
+# Conforme Requisitos 10.3, 10.4, 10.5, 10.6:
+# MAJOR: steering file removido, steering file renomeado, hook removido (Req 10.4)
+# MINOR: novo steering file adicionado, nova skill, nova diretriz em steering existente (Req 10.3)
+# PATCH: correção de texto, refinamento de prompt, ajuste de valor em MCP (Req 10.5)
+# Precedência: MAJOR > MINOR > PATCH quando múltiplas categorias na mesma release (Req 10.6)
 
 # --- Função de cálculo de bump ---
 # Recebe uma lista de categorias de mudanças (MAJOR, MINOR, PATCH) separadas por espaço.
@@ -141,13 +142,13 @@ expected_bump() {
 }
 
 # =============================================================================
-# Property Test 9a: Conjuntos mistos sempre retornam o bump de maior precedência (20 iterações)
+# Property Test 7a: Conjuntos mistos sempre retornam o bump de maior precedência (100 iterações)
 # =============================================================================
-@test "Property 9a: bump resultante é sempre o de maior precedência em conjuntos mistos (20 iterações)" {
+@test "Property 7a: bump resultante é sempre o de maior precedência em conjuntos mistos (100 iterações)" {
   local failures=0
   local i
 
-  for (( i = 0; i < 20; i++ )); do
+  for (( i = 0; i < 100; i++ )); do
     local changes_str
     changes_str="$(gen_mixed_changes)"
 
@@ -165,17 +166,17 @@ expected_bump() {
     fi
   done
 
-  [[ ${failures} -eq 0 ]] || fail "Precedência violada em ${failures}/20 conjuntos mistos"
+  [[ ${failures} -eq 0 ]] || fail "Precedência violada em ${failures}/100 conjuntos mistos"
 }
 
 # =============================================================================
-# Property Test 9b: MAJOR sempre vence independentemente de outras categorias (20 iterações)
+# Property Test 7b: MAJOR sempre vence independentemente de outras categorias (100 iterações)
 # =============================================================================
-@test "Property 9b: presença de MAJOR sempre resulta em bump MAJOR (20 iterações)" {
+@test "Property 7b: presença de MAJOR sempre resulta em bump MAJOR (100 iterações)" {
   local failures=0
   local i
 
-  for (( i = 0; i < 20; i++ )); do
+  for (( i = 0; i < 100; i++ )); do
     local changes_str
     changes_str="$(gen_changes_with_major)"
 
@@ -191,17 +192,17 @@ expected_bump() {
     fi
   done
 
-  [[ ${failures} -eq 0 ]] || fail "MAJOR não teve precedência em ${failures}/20 conjuntos"
+  [[ ${failures} -eq 0 ]] || fail "MAJOR não teve precedência em ${failures}/100 conjuntos"
 }
 
 # =============================================================================
-# Property Test 9c: MINOR vence PATCH quando não há MAJOR (20 iterações)
+# Property Test 7c: MINOR vence PATCH quando não há MAJOR (100 iterações)
 # =============================================================================
-@test "Property 9c: MINOR vence PATCH quando não há MAJOR presente (20 iterações)" {
+@test "Property 7c: MINOR vence PATCH quando não há MAJOR presente (100 iterações)" {
   local failures=0
   local i
 
-  for (( i = 0; i < 20; i++ )); do
+  for (( i = 0; i < 100; i++ )); do
     local changes_str
     changes_str="$(gen_changes_minor_max)"
 
@@ -217,17 +218,17 @@ expected_bump() {
     fi
   done
 
-  [[ ${failures} -eq 0 ]] || fail "MINOR não teve precedência sobre PATCH em ${failures}/20 conjuntos"
+  [[ ${failures} -eq 0 ]] || fail "MINOR não teve precedência sobre PATCH em ${failures}/100 conjuntos"
 }
 
 # =============================================================================
-# Property Test 9d: Somente PATCH resulta em PATCH (20 iterações)
+# Property Test 7d: Somente PATCH resulta em PATCH (100 iterações)
 # =============================================================================
-@test "Property 9d: conjunto com apenas PATCH resulta em bump PATCH (20 iterações)" {
+@test "Property 7d: conjunto com apenas PATCH resulta em bump PATCH (100 iterações)" {
   local failures=0
   local i
 
-  for (( i = 0; i < 20; i++ )); do
+  for (( i = 0; i < 100; i++ )); do
     local changes_str
     changes_str="$(gen_changes_patch_only)"
 
@@ -243,17 +244,17 @@ expected_bump() {
     fi
   done
 
-  [[ ${failures} -eq 0 ]] || fail "PATCH não foi o resultado em ${failures}/20 conjuntos exclusivos de PATCH"
+  [[ ${failures} -eq 0 ]] || fail "PATCH não foi o resultado em ${failures}/100 conjuntos exclusivos de PATCH"
 }
 
 # =============================================================================
-# Property Test 9e: Ordem das mudanças não afeta o resultado (20 iterações)
+# Property Test 7e: Ordem das mudanças não afeta o resultado (100 iterações)
 # =============================================================================
-@test "Property 9e: precedência é independente da ordem das mudanças (20 iterações)" {
+@test "Property 7e: precedência é independente da ordem das mudanças (100 iterações)" {
   local failures=0
   local i
 
-  for (( i = 0; i < 20; i++ )); do
+  for (( i = 0; i < 100; i++ )); do
     local changes_str
     changes_str="$(gen_mixed_changes)"
 
@@ -281,5 +282,5 @@ expected_bump() {
     fi
   done
 
-  [[ ${failures} -eq 0 ]] || fail "Ordem afetou o resultado em ${failures}/20 conjuntos"
+  [[ ${failures} -eq 0 ]] || fail "Ordem afetou o resultado em ${failures}/100 conjuntos"
 }

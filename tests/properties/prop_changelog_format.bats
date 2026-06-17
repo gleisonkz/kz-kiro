@@ -1,6 +1,7 @@
 #!/usr/bin/env bats
 # =============================================================================
-# Property 8: Formato de changelog
+# Property 6/8: Formato de changelog
+# Feature: archetype-bff-fastify, Property 6: Formato de changelog
 # Feature: archetype-frontend-react, Property 8: Formato de changelog
 # =============================================================================
 # Para qualquer arquivo CHANGELOG.md válido do archetype, a primeira entrada
@@ -9,8 +10,8 @@
 # usar exclusivamente um dos 7 nomes válidos: Funcionalidades, Correções,
 # Documentação, Refatoração, Manutenção, Performance, CI/CD.
 #
-# **Validates: Requirements 1.7, 10.3, 10.4**
-# 20 iterações por property test.
+# **Validates: Requirements 1.7, 10.2, 10.3, 10.4**
+# 100 iterações por property test.
 
 setup() {
   load '../helpers/setup'
@@ -215,13 +216,13 @@ gen_invalid_changelog() {
 }
 
 # =============================================================================
-# Property Test 8a: changelog válido DEVE ser aceito (20 iterações)
+# Property Test 8a: changelog válido DEVE ser aceito (100 iterações)
 # =============================================================================
-@test "Property 8a: changelog com formato válido é aceito pela validação (20 iterações)" {
+@test "Property 8a: changelog com formato válido é aceito pela validação (100 iterações)" {
   local failures=0
   local i
 
-  for (( i = 0; i < 20; i++ )); do
+  for (( i = 0; i < 100; i++ )); do
     local version
     version="$(gen_semver)"
 
@@ -237,17 +238,17 @@ gen_invalid_changelog() {
     fi
   done
 
-  [[ ${failures} -eq 0 ]] || fail "Validação rejeitou ${failures}/20 changelogs válidos"
+  [[ ${failures} -eq 0 ]] || fail "Validação rejeitou ${failures}/100 changelogs válidos"
 }
 
 # =============================================================================
-# Property Test 8b: changelog inválido DEVE ser rejeitado (20 iterações)
+# Property Test 8b: changelog inválido DEVE ser rejeitado (100 iterações)
 # =============================================================================
-@test "Property 8b: changelog com formato inválido é rejeitado pela validação (20 iterações)" {
+@test "Property 8b: changelog com formato inválido é rejeitado pela validação (100 iterações)" {
   local failures=0
   local i
 
-  for (( i = 0; i < 20; i++ )); do
+  for (( i = 0; i < 100; i++ )); do
     local changelog
     changelog="$(gen_invalid_changelog)"
 
@@ -259,17 +260,17 @@ gen_invalid_changelog() {
     fi
   done
 
-  [[ ${failures} -eq 0 ]] || fail "Validação aceitou ${failures}/20 changelogs inválidos"
+  [[ ${failures} -eq 0 ]] || fail "Validação aceitou ${failures}/100 changelogs inválidos"
 }
 
 # =============================================================================
-# Property Test 8c: versão do changelog DEVE corresponder ao VERSION (20 iterações)
+# Property Test 8c: versão do changelog DEVE corresponder ao VERSION (100 iterações)
 # =============================================================================
-@test "Property 8c: changelog cuja versão não corresponde ao VERSION é rejeitado (20 iterações)" {
+@test "Property 8c: changelog cuja versão não corresponde ao VERSION é rejeitado (100 iterações)" {
   local failures=0
   local i
 
-  for (( i = 0; i < 20; i++ )); do
+  for (( i = 0; i < 100; i++ )); do
     # Gerar changelog com uma versão
     local changelog_version
     changelog_version="$(gen_semver)"
@@ -292,7 +293,7 @@ gen_invalid_changelog() {
     fi
   done
 
-  [[ ${failures} -eq 0 ]] || fail "Validação aceitou ${failures}/20 changelogs com versão divergente"
+  [[ ${failures} -eq 0 ]] || fail "Validação aceitou ${failures}/100 changelogs com versão divergente"
 }
 
 # =============================================================================
