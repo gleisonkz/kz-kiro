@@ -147,3 +147,95 @@ validate_semver() {
   ! validate_semver "a.b.c"
   ! validate_semver "1.x.0"
 }
+
+# =============================================================================
+# Property 2: Formato de versão semântica — archetype backend-csharp
+# Feature: archetype-backend-csharp
+#
+# Valida que o arquivo VERSION do archetype backend-csharp contém exatamente
+# uma versão semver válida (MAJOR.MINOR.PATCH), sem prefixo v, sem espaços,
+# sem trailing newline extra.
+#
+# **Validates: Requirements 1.6, 11.1**
+# =============================================================================
+
+# --- Property 2: VERSION do archetype backend-csharp ---
+
+@test "Property 2 — archetype backend-csharp: VERSION contém semver válido" {
+  local version_file="${BATS_TEST_DIRNAME}/../../archetypes/backend-csharp/VERSION"
+
+  # Arquivo deve existir
+  [[ -f "${version_file}" ]] || {
+    echo "Arquivo VERSION não encontrado: ${version_file}" >&2
+    return 1
+  }
+
+  # Lê conteúdo bruto (sem strip de newline do bash)
+  local content
+  content="$(cat "${version_file}")"
+
+  # Deve ser semver válido
+  if ! validate_semver "${content}"; then
+    echo "VERSION do backend-csharp '${content}' não é semver válido" >&2
+    return 1
+  fi
+}
+
+@test "Property 2 — archetype backend-csharp: VERSION não tem prefixo v" {
+  local version_file="${BATS_TEST_DIRNAME}/../../archetypes/backend-csharp/VERSION"
+  local content
+  content="$(cat "${version_file}")"
+
+  [[ "${content}" != v* ]] || {
+    echo "VERSION '${content}' tem prefixo v" >&2
+    return 1
+  }
+}
+
+@test "Property 2 — archetype backend-csharp: VERSION não tem espaços" {
+  local version_file="${BATS_TEST_DIRNAME}/../../archetypes/backend-csharp/VERSION"
+  local content
+  content="$(cat "${version_file}")"
+
+  [[ "${content}" != *" "* ]] || {
+    echo "VERSION '${content}' contém espaços" >&2
+    return 1
+  }
+}
+
+@test "Property 2 — archetype backend-csharp: VERSION não tem trailing newline extra" {
+  local version_file="${BATS_TEST_DIRNAME}/../../archetypes/backend-csharp/VERSION"
+
+  # Verifica que o último byte não é uma segunda newline
+  # (bash `cat` strip de trailing newline é normal, mas queremos verificar
+  # que não há linhas extras)
+  local line_count
+  line_count=$(wc -l < "${version_file}" | tr -d ' ')
+
+  [[ "${line_count}" -le 1 ]] || {
+    echo "VERSION tem ${line_count} linhas — esperado no máximo 1" >&2
+    return 1
+  }
+}
+
+@test "Property 2 — semver válido + inválido combinado: 100 iterações com proporção mista (backend-csharp)" {
+  # Gera mix de 50 válidos e 50 inválidos, verificando classificação correta
+  local i
+  for (( i = 0; i < 50; i++ )); do
+    local valid
+    valid="$(gen_semver)"
+    if ! validate_semver "${valid}"; then
+      echo "Iteração ${i}: válido '${valid}' rejeitado incorretamente" >&2
+      return 1
+    fi
+  done
+
+  for (( i = 0; i < 50; i++ )); do
+    local invalid
+    invalid="$(gen_invalid_semver)"
+    if validate_semver "${invalid}"; then
+      echo "Iteração ${i}: inválido '${invalid}' aceito incorretamente" >&2
+      return 1
+    fi
+  done
+}

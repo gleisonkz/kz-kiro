@@ -2,12 +2,14 @@
 # =============================================================================
 # Property 7: Precedência de version bump
 # Feature: archetype-bff-fastify, Property 7: Precedência de version bump
+# Feature: archetype-backend-csharp, Property 7: Precedência de version bump
 # =============================================================================
 # Para qualquer conjunto de mudanças em uma release que se enquadram em múltiplas
 # categorias de incremento, a função de cálculo de bump SHALL retornar apenas o
 # incremento de maior precedência (MAJOR > MINOR > PATCH).
 #
-# **Validates: Requirements 10.3, 10.4, 10.5, 10.6**
+# **Validates: Requirements 10.3, 10.4, 10.5, 10.6** (bff-fastify)
+# **Validates: Requirements 11.3, 11.4, 11.5, 11.6** (backend-csharp)
 # Mínimo 100 iterações por property test.
 
 setup() {

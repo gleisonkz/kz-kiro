@@ -3,12 +3,13 @@
 # Property: Frontmatter de skills
 # Feature: archetype-frontend-react, Property 6: Frontmatter de skills
 # Feature: archetype-bff-fastify, Property 4: Frontmatter de skills
+# Feature: archetype-backend-csharp, Property 4: Frontmatter de skills
 # =============================================================================
 # Para qualquer arquivo .md no diretório skills/ (excluindo README.md), o
 # frontmatter YAML SHALL conter exatamente os campos name (string não-vazia),
 # description (string não-vazia) e inclusion com valor "manual".
 #
-# **Validates: Requirements 8.8 (frontend-react), Requirements 7.4 (bff-fastify)**
+# **Validates: Requirements 8.8 (frontend-react), Requirements 7.4 (bff-fastify), Requirements 8.6 (backend-csharp)**
 # Mínimo 100 iterações por property test.
 
 setup() {
@@ -365,4 +366,39 @@ description: \"Gera $(_rand_alpha 8) seguindo padrões\"
   # Verificar que ao menos 3 skills existem (generate-module, generate-client, generate-plugin)
   [[ ${skill_count} -ge 3 ]] || fail "Esperado ao menos 3 skills no archetype bff-fastify, encontrado: ${skill_count}"
   [[ ${failures} -eq 0 ]] || fail "${failures}/${skill_count} skills do archetype bff-fastify não possuem frontmatter válido"
+}
+
+
+# =============================================================================
+# Property Test 4 (backend-csharp): todos os skills do archetype backend-csharp possuem frontmatter válido
+# **Validates: Requirements 8.6**
+# =============================================================================
+@test "Property 4 (backend-csharp): todos os skills do archetype backend-csharp possuem frontmatter válido" {
+  local skills_dir="${BATS_TEST_DIRNAME}/../../archetypes/backend-csharp/skills"
+  local failures=0
+  local skill_count=0
+
+  # Percorrer todos os .md no diretório de skills (excluindo README.md)
+  for skill_file in "${skills_dir}"/*.md; do
+    [[ -f "${skill_file}" ]] || continue
+
+    local filename
+    filename="$(basename "${skill_file}")"
+    # Pular README.md
+    [[ "${filename}" == "README.md" ]] && continue
+
+    skill_count=$((skill_count + 1))
+
+    local content
+    content="$(cat "${skill_file}")"
+
+    if ! validate_skill_frontmatter "${content}"; then
+      echo "FALHA: ${filename} não possui frontmatter válido (name + description + inclusion: manual)"
+      failures=$((failures + 1))
+    fi
+  done
+
+  # Verificar que ao menos 5 skills existem (generate-module, generate-endpoint, generate-repository, generate-data-model, generate-validation-package)
+  [[ ${skill_count} -ge 5 ]] || fail "Esperado ao menos 5 skills no archetype backend-csharp, encontrado: ${skill_count}"
+  [[ ${failures} -eq 0 ]] || fail "${failures}/${skill_count} skills do archetype backend-csharp não possuem frontmatter válido"
 }

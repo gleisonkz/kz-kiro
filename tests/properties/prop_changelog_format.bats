@@ -3,6 +3,7 @@
 # Property 6/8: Formato de changelog
 # Feature: archetype-bff-fastify, Property 6: Formato de changelog
 # Feature: archetype-frontend-react, Property 8: Formato de changelog
+# Feature: archetype-backend-csharp, Property 6: Formato de changelog
 # =============================================================================
 # Para qualquer arquivo CHANGELOG.md válido do archetype, a primeira entrada
 # SHALL seguir o formato `## MAJOR.MINOR.PATCH (YYYY-MM-DD)`, a versão SHALL
@@ -383,4 +384,84 @@ gen_invalid_changelog() {
 Nenhuma release ainda."
 
   ! validate_changelog "$changelog" "1.0.0"
+}
+
+# =============================================================================
+# Validação do CHANGELOG.md real do archetype backend-csharp
+# Feature: archetype-backend-csharp, Property 6: Formato de changelog
+# **Validates: Requirements 1.7, 11.2**
+# =============================================================================
+
+@test "Property 6 (backend-csharp): CHANGELOG.md real tem formato de cabeçalho válido" {
+  local changelog_path="${BATS_TEST_DIRNAME}/../../archetypes/backend-csharp/CHANGELOG.md"
+  local version_path="${BATS_TEST_DIRNAME}/../../archetypes/backend-csharp/VERSION"
+
+  [[ -f "$changelog_path" ]] || fail "CHANGELOG.md não encontrado em ${changelog_path}"
+  [[ -f "$version_path" ]] || fail "VERSION não encontrado em ${version_path}"
+
+  local changelog_content version_content
+  changelog_content="$(cat "$changelog_path")"
+  version_content="$(cat "$version_path" | tr -d '\n')"
+
+  validate_changelog "$changelog_content" "$version_content"
+}
+
+@test "Property 6 (backend-csharp): CHANGELOG.md real usa apenas seções válidas" {
+  local changelog_path="${BATS_TEST_DIRNAME}/../../archetypes/backend-csharp/CHANGELOG.md"
+
+  [[ -f "$changelog_path" ]] || fail "CHANGELOG.md não encontrado em ${changelog_path}"
+
+  local changelog_content
+  changelog_content="$(cat "$changelog_path")"
+
+  # Verificar que todas as seções ### usam apenas nomes válidos
+  local failures=0
+  while IFS= read -r line; do
+    if [[ "$line" =~ ^###\  ]]; then
+      local section_name="${line#\#\#\# }"
+      local found=false
+      local valid_name
+      for valid_name in "${VALID_SECTIONS[@]}"; do
+        if [[ "$section_name" == "$valid_name" ]]; then
+          found=true
+          break
+        fi
+      done
+      if [[ "$found" == "false" ]]; then
+        echo "Seção inválida encontrada: '${section_name}'"
+        failures=$((failures + 1))
+      fi
+    fi
+  done <<< "$changelog_content"
+
+  [[ ${failures} -eq 0 ]] || fail "CHANGELOG.md do backend-csharp contém ${failures} seção(ões) com nome inválido"
+}
+
+@test "Property 6 (backend-csharp): CHANGELOG.md real tem versão correspondente ao VERSION" {
+  local changelog_path="${BATS_TEST_DIRNAME}/../../archetypes/backend-csharp/CHANGELOG.md"
+  local version_path="${BATS_TEST_DIRNAME}/../../archetypes/backend-csharp/VERSION"
+
+  [[ -f "$changelog_path" ]] || fail "CHANGELOG.md não encontrado em ${changelog_path}"
+  [[ -f "$version_path" ]] || fail "VERSION não encontrado em ${version_path}"
+
+  local changelog_content version_content
+  changelog_content="$(cat "$changelog_path")"
+  version_content="$(cat "$version_path" | tr -d '\n')"
+
+  # Extrair a primeira versão do changelog
+  local first_release_header=""
+  while IFS= read -r line; do
+    if [[ "$line" =~ ^##\  && ! "$line" =~ ^###\  ]]; then
+      first_release_header="$line"
+      break
+    fi
+  done <<< "$changelog_content"
+
+  [[ -n "$first_release_header" ]] || fail "Nenhum cabeçalho de release encontrado no CHANGELOG.md"
+
+  local header_version
+  header_version=$(echo "$first_release_header" | sed -E 's/^## ([0-9]+\.[0-9]+\.[0-9]+) \(.+\)$/\1/')
+
+  [[ "$header_version" == "$version_content" ]] || \
+    fail "Versão no CHANGELOG (${header_version}) difere do VERSION (${version_content})"
 }
