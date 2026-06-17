@@ -11,7 +11,7 @@
 > TODO: Definir quais steering files serão criados neste power.
 
 Possíveis usos:
-- Contexto sobre a arquitetura React/Next.js específica do projeto.
+- Contexto sobre a arquitetura React específica do projeto.
 - Padrões de design system e componentização da organização.
 - Regras de acessibilidade e performance aplicadas via Kiro.
 

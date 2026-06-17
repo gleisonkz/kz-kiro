@@ -9,7 +9,7 @@
 Este repositório é a **fonte da verdade** para tudo que diz respeito à adoção, padronização e evolução do Kiro dentro da organização. Ele concentra:
 
 - **Baseline global** — princípios, políticas de engenharia, segurança e documentação que valem para todos os projetos.
-- **Archetypes** — configurações pré-moldadas de Kiro por tipo de projeto (ex.: backend NestJS, frontend React/Next.js), prontas para serem aplicadas como ponto de partida.
+- **Archetypes** — configurações pré-moldadas de Kiro por tipo de projeto (ex.: backend NestJS, frontend React), prontas para serem aplicadas como ponto de partida.
 - **Powers** — extensões reutilizáveis de Kiro empacotadas para instalação em projetos específicos.
 - **Scripts** — automações de bootstrap, sincronização e diagnóstico do ambiente Kiro.
 - **Documentação** — onboarding, governança, arquitetura e plano de rollout.

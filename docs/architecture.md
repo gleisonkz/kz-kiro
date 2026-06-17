@@ -103,7 +103,7 @@ archetypes/<nome>/
 | Archetype | Stack | Status |
 |---|---|---|
 | `backend-nest` | NestJS + TypeScript | Em desenvolvimento |
-| `frontend-react` | React + Next.js + TypeScript | Em desenvolvimento |
+| `frontend-react` | React + TypeScript | Em desenvolvimento |
 | `mobile-flutter` | Flutter + Dart (Clean Architecture + Riverpod) | Em desenvolvimento |
 
 ---
@@ -118,7 +118,7 @@ Powers são extensões modulares que podem ser instaladas em **qualquer projeto*
 |---|---|---|
 | `mb-kiro-manager` | Gerenciamento central de instalação e atualização dos padrões Kiro | Em desenvolvimento |
 | `mb-backend-nest` | Capacidades Kiro específicas para projetos NestJS | Em desenvolvimento |
-| `mb-frontend-react` | Capacidades Kiro específicas para projetos React/Next.js | Em desenvolvimento |
+| `mb-frontend-react` | Capacidades Kiro específicas para projetos React | Em desenvolvimento |
 | `mb-mobile-flutter` | Capacidades Kiro específicas para projetos Flutter mobile | Em desenvolvimento |
 | `mb-monorepo-nx` | Capacidades Kiro para monorepos com Nx | Em desenvolvimento |
 
