@@ -26,20 +26,56 @@ Este steering file define o baseline de segurança da MonteBravo. O Kiro deve us
 
 ### Autenticação e Autorização
 
-> TODO: Definir os padrões obrigatórios de autenticação (ex.: OAuth2, JWT, SSO corporativo) e autorização (ex.: RBAC, ABAC).
+<!-- Baseado em ADR: ADR 004 - Autenticação | Confluence: https://montebravo.atlassian.net/wiki/spaces/MBI/pages/335151112 -->
 
-- [ ] Toda API exposta externamente deve exigir autenticação.
-- [ ] TODO: Definir provedor de identidade padrão.
-- [ ] TODO: Definir política de expiração de tokens.
-- [ ] TODO: Definir política de autorização por recurso.
+A plataforma utiliza o **AuthCube (Dinamo)** como Identity Provider (IdP) único para todos os públicos. Todos os tokens finais são emitidos e assinados pelo AuthCube via HSM, garantindo não-repúdio.
+
+**Domínios de identidade:**
+
+| Público | IdP | Federação | Protocolo | Token storage |
+|---|---|---|---|---|
+| Clientes (web/mobile) | AuthCube | — | OIDC + PKCE | Cookie httpOnly (BFF) / Secure storage (mobile) |
+| Funcionários (backoffice) | AuthCube | Azure AD via SAML 2.0 | OIDC + PKCE | Cookie httpOnly (BFF) |
+| Serviços (M2M) | AuthCube | — | Client Credentials | Memória + cache Redis |
+
+**Requisitos obrigatórios:**
+
+- [x] Toda API exposta externamente deve exigir autenticação.
+- [x] IdP único: **AuthCube (Dinamo)** centraliza a emissão de tokens para todos os públicos.
+- [x] Protocolo padrão para clientes: **OIDC + PKCE** (Authorization Code Flow com PKCE).
+- [x] Protocolo padrão para service-to-service: **Client Credentials** (OAuth2).
+- [x] Federação de backoffice: **Azure AD (Entra ID) via SAML 2.0** diretamente no AuthCube.
+- [x] Tokens de curta duração: access token 5–15 min, refresh token rotativo.
+- [x] **Tokens nunca no localStorage** no front web — sempre cookie httpOnly via BFF.
+- [x] Assinatura de tokens via **HSM** (Dinamo) — não-repúdio garantido.
+- [x] **MFA obrigatório** em operações sensíveis (saque, alteração de dados bancários, ordens acima de limite).
+- [x] **Step-up authentication** — re-autenticação para ações de alto risco mesmo com sessão ativa.
+- [x] **API Gateway (KONG)** valida JWT na borda (issuer único = AuthCube).
+
+**Validação de JWT nos serviços:**
+- Issuer único: `https://authcube.montebravo.com.br`
+- Audience: configurável por serviço (ex: `mb-api`)
+- Diferenciação entre cliente e backoffice via claim `realm` (não por scheme).
+- `RoleClaimType = "groups"` para mapeamento de permissões.
+
+**Políticas de autorização:**
+- `BackofficeOnly`: requer claim `realm = internos`.
+- `ClientesOnly`: requer claim `realm = clientes`.
+- Autorização por recurso via roles mapeadas de grupos Azure AD (para backoffice).
+
+**Comunicação entre serviços:**
+- Cada serviço possui `client_id`/`client_secret` próprio (armazenado no AWS Secrets Manager).
+- Scopes mínimos necessários (princípio do menor privilégio).
+- Tokens M2M cacheados em Redis com TTL inferior ao tempo de expiração.
 
 ### Gestão de Segredos
 
-> TODO: Definir como segredos (senhas, chaves de API, certificados) devem ser gerenciados.
+<!-- Baseado em ADR: ADR 004 - Autenticação | Confluence: https://montebravo.atlassian.net/wiki/spaces/MBI/pages/335151112 -->
 
-- [ ] Nunca commitar segredos no repositório.
-- [ ] TODO: Definir o gerenciador de segredos aprovado (ex.: AWS Secrets Manager, HashiCorp Vault, Azure Key Vault).
-- [ ] TODO: Definir processo de rotação de segredos.
+- [x] Nunca commitar segredos no repositório.
+- [x] Gerenciador de segredos aprovado: **AWS Secrets Manager** (produção) e **SSM Parameter Store** (configurações não-sensíveis).
+- [x] Client secrets, credenciais FIX, tokens de integração e certificados devem residir exclusivamente no AWS Secrets Manager ou HSM (Dinamo).
+- [ ] TODO: Definir processo de rotação de segredos (frequência, automação).
 
 ### Segurança de Dependências
 
@@ -109,4 +145,4 @@ A comunicação entre serviços distribuídos internos utiliza mensageria assín
 
 ---
 
-*Versão: 0.2.0 | Última revisão: 2026-05-06 | Próxima revisão: TODO*
+*Versão: 0.3.0 | Última revisão: 2026-06-18 | Próxima revisão: TODO*
