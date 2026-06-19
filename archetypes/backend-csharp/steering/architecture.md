@@ -5,7 +5,7 @@
 > Este arquivo é injetado como contexto pelo Kiro em projetos de serviços de domínio .NET/C#.
 > Ele define a arquitetura interna, padrões de comunicação e fronteiras de responsabilidade.
 >
-> Baseado em: ADR-001 (Comunicação entre serviços distribuídos), RFC-001 (Padrões arquiteturais), RFC-003 (Outbox/Inbox)
+> Baseado em: ADR-001 (Comunicação entre serviços distribuídos), ADR-002 (Mensageria/Kafka), ADR 004 (Autenticação), RFC-001 (Padrões arquiteturais), RFC-003 (Outbox/Inbox)
 
 ---
 
@@ -154,6 +154,81 @@ HTTP direto (REST) é aceito apenas para:
 | Confiabilidade | Falha se receptor inativo | Mensagens persistem na fila |
 | Performance | Rápido para requests individuais | Melhor em alto volume |
 | Complexidade | Fácil de construir | Maior esforço de setup |
+
+---
+
+## Mensageria e Kafka (ADR-002)
+
+<!-- Baseado em ADR: ADR-002 – Padronização de Mensageria, Schemas e Nomenclatura Kafka | Confluence: https://montebravo.atlassian.net/wiki/spaces/MBI/pages/249004095 -->
+
+### Serialização: JSON como Padrão
+
+O padrão mandatório para mensagens de negócio é **JSON**, utilizando `System.Text.Json` com Source Generators para alta performance e baixo consumo de memória.
+
+**Regras:**
+- Payloads desserializados em **Records C# fortemente tipados** (imutáveis).
+- Evitar `dynamic` ou `JsonElement` genéricos no fluxo principal de negócio.
+- Validação de compatibilidade via testes de contrato ou JsonSchema.
+
+> **Evolução futura:** Caso métricas de telemetria (latência, throughput, I/O) indiquem gargalos na serialização, a migração para formatos binários (Avro/Protobuf) será avaliada de forma cirúrgica.
+
+### Taxonomia de Tópicos Kafka
+
+Os tópicos devem seguir a estrutura hierárquica:
+
+```
+[area].[contexto].[classificacao].[entidade].[estado_verbo].[versao]
+```
+
+| Nível | Descrição | Exemplos |
+|---|---|---|
+| Area | Macro-domínio da corretora | `trading`, `wealth`, `core`, `compliance`, `renda-fixa` |
+| Contexto | Subdomínio ou aplicação | `oms`, `fix-gateway`, `cdb`, `lci`, `tesouro` |
+| Classificação | Tipo de mensagem | `fct` (Fato), `cmd` (Comando), `cdc` (Data Capture) |
+| Entidade | Objeto de negócio principal | `order`, `execution`, `customer`, `balance` |
+| Estado/Verbo | O que ocorreu ou deve ocorrer | `placed`, `cancelled`, `calculate-tax` |
+| Versão | Versão majoritária do contrato | `v1`, `v2` |
+
+**Exemplo:** `trading.oms.fct.order.executed.v1`
+
+### Naming Convention de Contratos C#
+
+Classes de contrato (DTOs/Records) devem usar namespaces que refletem o domínio e versão:
+
+```csharp
+namespace Broker.Trading.Oms.V1;
+
+public record OrderExecuted(
+    Guid OrderId,
+    string AccountId,
+    string Ticker,
+    decimal Quantity,
+    decimal Price,
+    DateTime ExecutedAt);
+```
+
+### Configuração de Producers
+
+Todo producer que publica em tópicos de ordens e movimentações financeiras **deve** configurar:
+
+```csharp
+var producerConfig = new ProducerConfig
+{
+    BootstrapServers = configuration["Kafka:BootstrapServers"],
+    Acks = Acks.All,  // Obrigatório para tópicos de ordens/movimentações
+    EnableIdempotence = true
+};
+```
+
+### Comparativo de Serializadores
+
+| Critério | JSON (System.Text.Json) | Protobuf | Apache Avro |
+|---|---|---|---|
+| Tamanho do payload | Grande (texto) | Muito pequeno (binário) | Pequeno (binário + Schema ID) |
+| Velocidade | Rápida (com Source Generators) | Extremamente rápida | Rápida |
+| Schema Evolution | Flexível (requer atenção) | Excelente | Superior (full compatibility) |
+| Troubleshooting | Excelente (leitura direta nas filas) | Complexo (requer decodificador) | Complexo (depende do Schema Registry) |
+| Integração C# | Nativa e onipresente | Excelente (gRPC style) | Excelente (Confluent Serdes) |
 
 ---
 
@@ -442,6 +517,67 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
 
 ---
 
+## Autenticação e Autorização (ADR 004)
+
+<!-- Baseado em ADR: ADR 004 - Autenticação | Confluence: https://montebravo.atlassian.net/wiki/spaces/MBI/pages/335151112 -->
+
+### Configuração JWT — Issuer Único (AuthCube)
+
+Todos os serviços .NET devem validar tokens JWT emitidos pelo AuthCube com a seguinte configuração:
+
+```csharp
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.Authority = "https://authcube.montebravo.com.br";
+        options.Audience = "mb-api";
+        options.RequireHttpsMetadata = true;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            RoleClaimType = "groups"
+        };
+    });
+```
+
+### Políticas de Autorização
+
+A diferenciação entre cliente e backoffice é feita por **claim/realm** dentro do token (não por scheme de autenticação):
+
+```csharp
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("BackofficeOnly", p => p.RequireClaim("realm", "internos"));
+    options.AddPolicy("ClientesOnly", p => p.RequireClaim("realm", "clientes"));
+});
+```
+
+### Comunicação Service-to-Service
+
+Serviços internos autenticam via **Client Credentials** (OAuth2) no AuthCube:
+
+- Cada serviço possui `client_id`/`client_secret` próprio (AWS Secrets Manager).
+- Tokens de serviço possuem scopes restritos ao mínimo necessário.
+- Cache de tokens M2M em Redis com TTL inferior ao tempo de expiração.
+
+```csharp
+// Exemplo: obter token M2M via Client Credentials
+services.AddHttpClient("AuthCubeToken")
+    .ConfigureHttpClient(c => c.BaseAddress = new Uri("https://authcube.montebravo.com.br"));
+```
+
+### Propagação de Contexto
+
+- **Correlation ID** (`X-Correlation-Id`) em todas as chamadas para rastreabilidade ponta a ponta.
+- **Identidade do usuário originador** propagada nos eventos (compliance/CVM).
+- Toda ordem roteada registra qual usuário autenticado a originou.
+
+---
+
 ## Resiliência
 
 ### Retry com Polly
@@ -522,6 +658,8 @@ Para consistência no código, usar os seguintes termos padronizados:
 ## Referências
 
 - [ADR-001 – Padrão arquitetural de comunicação](https://montebravo.atlassian.net/wiki/spaces/MBI/pages/219840517)
+- [ADR-002 – Padronização de Mensageria, Schemas e Nomenclatura Kafka](https://montebravo.atlassian.net/wiki/spaces/MBI/pages/249004095)
+- [ADR 004 – Autenticação](https://montebravo.atlassian.net/wiki/spaces/MBI/pages/335151112)
 - [RFC-001 – Padrões arquiteturais de projetos](https://montebravo.atlassian.net/wiki/spaces/MBI/pages/181731331)
 - [RFC-002 – Padrão Steering File para backend](https://montebravo.atlassian.net/wiki/spaces/MBI/pages/192806913)
 - [RFC-003 – Outbox/Inbox para transações financeiras](https://montebravo.atlassian.net/wiki/spaces/MBI/pages/227082241)
@@ -530,4 +668,4 @@ Para consistência no código, usar os seguintes termos padronizados:
 
 ---
 
-*Versão: 0.2.0 | Última revisão: 2026-05 | Próxima revisão: TODO*
+*Versão: 0.3.0 | Última revisão: 2026-06-18 | Próxima revisão: TODO*
