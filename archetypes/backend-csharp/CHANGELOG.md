@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0 (2026-06-19)
+
+### Funcionalidades
+
+- Documentar padrões de mensageria e Kafka conforme ADR-002
+- Documentar padrões de autenticação e autorização conforme ADR 004
+
 ## 0.2.0 (2026-05-29)
 
 ### Funcionalidades
