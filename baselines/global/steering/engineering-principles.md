@@ -59,6 +59,33 @@ A comunicação entre serviços distribuídos internos deve seguir o padrão de 
 - Observabilidade centralizada (logs, métricas, tracing) é obrigatória para rastreabilidade de mensagens assíncronas.
 - Toda comunicação entre serviços deve usar TLS 1.2+.
 
+#### Serialização de Mensagens (ADR-002)
+
+<!-- Baseado em ADR: ADR-002 – Padronização de Mensageria, Schemas e Nomenclatura Kafka | Confluence: https://montebravo.atlassian.net/wiki/spaces/MBI/pages/249004095 -->
+
+O padrão mandatório para mensagens de negócio trafegadas via mensageria é **JSON**, utilizando `System.Text.Json` com Source Generators para alta performance. Payloads devem ser desserializados em Records C# fortemente tipados (imutáveis), evitando tipos dinâmicos no fluxo principal.
+
+> **Evolução futura:** Caso métricas de telemetria indiquem gargalos na serialização (latência, throughput, I/O), a migração para formatos binários (Avro/Protobuf) poderá ser avaliada de forma cirúrgica.
+
+#### Taxonomia de Tópicos Kafka (ADR-002)
+
+Os tópicos Kafka devem seguir a nomenclatura hierárquica:
+
+```
+[area].[contexto].[classificacao].[entidade].[estado_verbo].[versao]
+```
+
+| Nível | Descrição | Exemplos |
+|---|---|---|
+| Area | Macro-domínio da corretora | `trading`, `wealth`, `core`, `compliance`, `renda-fixa` |
+| Contexto | Subdomínio ou aplicação | `oms`, `fix-gateway`, `cdb`, `lci`, `tesouro` |
+| Classificação | Tipo de mensagem | `fct` (Fato), `cmd` (Comando), `cdc` (Data Capture) |
+| Entidade | Objeto de negócio principal | `order`, `execution`, `customer`, `balance` |
+| Estado/Verbo | O que ocorreu ou deve ocorrer | `placed`, `cancelled`, `calculate-tax` |
+| Versão | Versão majoritária do contrato | `v1`, `v2` |
+
+**Exemplo:** `trading.oms.fct.order.executed.v1`
+
 ### 5. Observabilidade por Padrão
 
 <!-- Baseado em ADR: ADR-001 – Padrão arquitetural de comunicação - Serviços distribuídos internos | Confluence: https://montebravo.atlassian.net/wiki/spaces/MBI/pages/219840517 -->
@@ -115,4 +142,4 @@ Todos os serviços devem implementar observabilidade estruturada e centralizada.
 
 ---
 
-*Versão: 0.2.0 | Última revisão: 2026-05-06 | Próxima revisão: TODO*
+*Versão: 0.3.0 | Última revisão: 2026-06-18 | Próxima revisão: TODO*
