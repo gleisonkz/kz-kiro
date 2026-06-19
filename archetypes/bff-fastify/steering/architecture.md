@@ -5,7 +5,7 @@
 > Este arquivo é injetado como contexto pelo Kiro em projetos BFF Fastify da MonteBravo.
 > Ele define a arquitetura interna, padrões de comunicação e fronteiras de responsabilidade.
 >
-> Baseado em: RFC-0013 (Framework padrão para BFFs), RFC-0014 (Estrutura e Organização dos BFFs), ADR-0003, ADR-0011
+> Baseado em: RFC-0013 (Framework padrão para BFFs), RFC-0014 (Estrutura e Organização dos BFFs), ADR-0003, ADR-0011, ADR 004 (Autenticação)
 
 ---
 
@@ -212,6 +212,44 @@ async getOrderDetails(orderId: string) {
 
 ## Resiliência
 
+### Autenticação e Token Management (ADR 004)
+
+<!-- Baseado em ADR: ADR 004 - Autenticação | Confluence: https://montebravo.atlassian.net/wiki/spaces/MBI/pages/335151112 -->
+
+O BFF é responsável pelo gerenciamento seguro de tokens entre o frontend e os serviços de domínio.
+
+**Responsabilidades do BFF na autenticação:**
+
+1. **Proxy de autenticação**: redireciona o usuário para o AuthCube (OIDC + PKCE).
+2. **Token exchange**: troca o authorization code por tokens no AuthCube.
+3. **Token storage seguro**: armazena o refresh token em **cookie httpOnly** (nunca expõe ao JavaScript).
+4. **Token refresh transparente**: renova o access token automaticamente quando expirado.
+5. **Propagação de identidade**: envia o Bearer access token para serviços downstream.
+6. **Logout**: invalida a sessão no AuthCube e limpa cookies.
+
+**Regras de segurança:**
+
+- Tokens **nunca** devem ser armazenados em localStorage/sessionStorage.
+- O access token é transmitido ao frontend apenas em memória (via response body) ou propagado diretamente pelo BFF.
+- Cookies de refresh token: `httpOnly`, `Secure`, `SameSite=Strict`, com path restrito.
+- O BFF valida o JWT do AuthCube (issuer: `https://authcube.montebravo.com.br`) antes de propagar para downstream.
+
+**Fluxo de autenticação via BFF:**
+
+```
+1. Frontend → BFF → redirect para AuthCube (/authorize) com PKCE
+2. AuthCube → login + MFA → retorna authorization code
+3. Frontend → BFF com code
+4. BFF → troca code por tokens no AuthCube (/token)
+5. BFF → armazena refresh token em cookie httpOnly
+6. BFF → retorna access token ao frontend (ou propaga diretamente)
+7. Frontend → BFF → propaga Bearer token para serviços downstream
+```
+
+**Diferenciação de público:**
+- O claim `realm` no JWT diferencia clientes (`clientes`) de backoffice (`internos`).
+- O BFF pode aplicar regras de roteamento baseadas no realm sem precisar de múltiplos schemes.
+
 ### Circuit Breaker
 
 Cada client deve implementar circuit breaker:
@@ -274,10 +312,11 @@ Cada client deve implementar circuit breaker:
 - [RFC-0014 – Estrutura e Organização dos BFFs](https://montebravo.atlassian.net/wiki/spaces/MBI/pages/186777613)
 - [ADR-0003 – Monolito Modular vs Microfrontends](https://montebravo.atlassian.net/wiki/spaces/MBI/pages/108757151)
 - [ADR-0011 – Arquitetura das Aplicações Frontend](https://montebravo.atlassian.net/wiki/spaces/MBI/pages/132349958)
+- [ADR 004 – Autenticação](https://montebravo.atlassian.net/wiki/spaces/MBI/pages/335151112)
 - [Fastify Documentation](https://fastify.dev/docs/latest/)
 - [Fastify Plugins – Encapsulation](https://fastify.dev/docs/latest/Reference/Plugins/)
 - [BFF Pattern - Sam Newman](https://samnewman.io/patterns/architectural/bff/)
 
 ---
 
-*Versão: 0.2.0 | Última revisão: 2026-05 | Próxima revisão: TODO*
+*Versão: 0.3.0 | Última revisão: 2026-06-18 | Próxima revisão: TODO*
