@@ -9,9 +9,10 @@
 Este repositório é a **fonte da verdade** para tudo que diz respeito à adoção, padronização e evolução do Kiro dentro da organização. Ele concentra:
 
 - **Baseline global** — princípios, políticas de engenharia, segurança e documentação que valem para todos os projetos.
-- **Archetypes** — configurações pré-moldadas de Kiro por tipo de projeto (ex.: backend NestJS, frontend React), prontas para serem aplicadas como ponto de partida.
+- **Archetypes** — configurações pré-moldadas de Kiro por tipo de projeto (ex.: backend C#, frontend React), prontas para serem aplicadas como ponto de partida.
 - **Powers** — extensões reutilizáveis de Kiro empacotadas para instalação em projetos específicos.
 - **Scripts** — automações de bootstrap, sincronização e diagnóstico do ambiente Kiro.
+- **Testes** — suíte de testes automatizados para validar a integridade das configurações.
 - **Documentação** — onboarding, governança, arquitetura e plano de rollout.
 
 ---
@@ -20,24 +21,38 @@ Este repositório é a **fonte da verdade** para tudo que diz respeito à adoç�
 
 ```
 mb-kiro/
-├── baselines/          # Diretrizes e políticas globais (aplicadas a todos os projetos)
+├── baselines/              # Diretrizes e políticas globais (aplicadas a todos os projetos)
 │   └── global/
-│       ├── mcp/        # MCPs homologados pela organização
-│       └── steering/   # Arquivos .md de steering que o Kiro lê como contexto de projeto
-├── archetypes/         # Templates de configuração Kiro por tipo de projeto
-│   ├── backend-nest/
-│   ├── bff-fastify/
-│   ├── frontend-react/
-│   └── mobile-flutter/
-├── powers/             # Powers reutilizáveis empacotados para instalação via Kiro
-│   ├── mb-kiro-manager/
-│   ├── mb-backend-nest/
-│   ├── mb-frontend-react/
-│   ├── mb-mobile-flutter/
-│   └── mb-monorepo-nx/
-├── scripts/            # Ferramentas de linha de comando para bootstrap, sync e doctor
-├── examples/           # Exemplos de manifesto e estrutura de projeto
-└── docs/               # Documentação de onboarding, governança e arquitetura
+│       ├── hooks/          # Hooks globais aplicáveis a qualquer projeto
+│       ├── mcp/            # MCPs homologados pela organização
+│       ├── steering/       # Arquivos .md de steering que o Kiro lê como contexto
+│       ├── CHANGELOG.md
+│       └── VERSION
+├── archetypes/             # Templates de configuração Kiro por tipo de projeto
+│   ├── backend-csharp/     # Archetype para backends em C#
+│   ├── bff-fastify/        # Archetype para BFFs com Fastify
+│   ├── frontend-react/     # Archetype para frontends React
+│   ├── mobile-flutter/     # Archetype para apps mobile Flutter
+│   ├── agents/             # Agentes compartilhados entre archetypes
+│   ├── hooks/              # Hooks compartilhados entre archetypes
+│   ├── skills/             # Skills compartilhadas entre archetypes
+│   └── steering/           # Steering files compartilhados entre archetypes
+├── powers/                 # Powers reutilizáveis empacotados para instalação via Kiro
+│   ├── mb-atlassian-rovo/  # Integração com Jira, Confluence e Compass
+│   ├── mb-frontend-react/  # Power especializado para projetos React
+│   ├── mb-kiro-manager/    # Gerenciamento e governança do Kiro
+│   ├── mb-mobile-flutter/  # Power especializado para projetos Flutter
+│   └── mb-monorepo-nx/     # Power para monorepos com Nx
+├── scripts/                # Ferramentas CLI para bootstrap, sync e doctor
+├── tests/                  # Suíte de testes automatizados
+│   ├── unit/
+│   ├── integration/
+│   ├── properties/
+│   ├── helpers/
+│   ├── lib/
+│   └── run_tests.sh
+├── examples/               # Exemplos de manifesto e estrutura de projeto
+└── docs/                   # Documentação de onboarding, governança e arquitetura
 ```
 
 ---
@@ -46,7 +61,7 @@ mb-kiro/
 
 | Conceito | O que é | Quando usar |
 |---|---|---|
-| **Baseline Global** | Conjunto de steering files e políticas aplicáveis a **qualquer** projeto da organização | Sempre — é o mínimo obrigatório |
+| **Baseline Global** | Conjunto de steering files, hooks e políticas aplicáveis a **qualquer** projeto da organização | Sempre — é o mínimo obrigatório |
 | **Archetype** | Configuração completa de Kiro para um tipo específico de stack (steering + hooks + agents + skills) | No início de um projeto novo, para partir de um template alinhado com os padrões da organização |
 | **Power** | Extensão modular do Kiro com funcionalidades específicas, instalável em qualquer projeto | Quando um projeto precisa de capacidades extras sem reescrever do zero |
 
@@ -59,6 +74,23 @@ mb-kiro/
 | `scripts/bootstrap.sh` | Configura um projeto novo com o archetype e baseline adequados |
 | `scripts/sync.sh` | Atualiza um projeto existente com a versão mais recente do baseline/archetype/powers |
 | `scripts/doctor.sh` | Diagnostica o estado atual do Kiro em um projeto e aponta inconsistências |
+
+---
+
+## Testes
+
+O repositório possui uma suíte de testes para garantir a integridade das configurações:
+
+```bash
+# Executar todos os testes
+./tests/run_tests.sh
+```
+
+A estrutura de testes está organizada em:
+
+- `tests/unit/` — testes unitários
+- `tests/integration/` — testes de integração
+- `tests/properties/` — testes baseados em propriedades
 
 ---
 
@@ -89,7 +121,7 @@ mb-kiro/
 
 ---
 
-## Versionamento (a revisar)
+## Versionamento
 
 Cada componente deste repositório evolui de forma independente usando versionamento semântico:
 
@@ -101,10 +133,22 @@ Mudanças **breaking** incrementam o `MAJOR`. Novas funcionalidades compatíveis
 
 ---
 
+## Arquivos de Relatório
+
+Na raiz do repositório existem relatórios gerados por processos de validação e sincronização:
+
+| Arquivo | Descrição |
+|---|---|
+| `adr-sync-report.md` | Relatório de sincronização de ADRs |
+| `steering-adr-validation.md` | Validação de steering files contra ADRs |
+| `steering-updates-summary.md` | Resumo de atualizações nos steering files |
+
+---
+
 ## Mantenedores
 
 > TODO: Listar os mantenedores responsáveis por este repositório.
 
 ---
 
-*Última atualização: 2026-04 | Organização: MonteBravo*
+*Última atualização: 2026-06 | Organização: MonteBravo*
