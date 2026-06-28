@@ -1,9 +1,9 @@
 ---
-name: "atlassian-rovo-mcp"
+name: "mb-atlassian-rovo"
 displayName: "Atlassian Rovo MCP"
 description: "Integração com Jira, Confluence e Compass via Atlassian Rovo MCP Server. Permite buscar, criar e atualizar issues, páginas e componentes diretamente do seu IDE."
 keywords: ["atlassian", "jira", "confluence", "compass", "rovo", "issue", "sprint", "backlog", "kanban", "page", "space", "jsm", "service management"]
-author: "Atlassian"
+author: "MonteBravo"
 ---
 
 # Atlassian Rovo MCP
@@ -146,6 +146,41 @@ Use `search` para buscas como:
 ### Obter contexto completo de uma issue
 
 Use `getTeamworkGraphContext` para ver PRs, deploys, builds e branches associados a uma issue.
+
+## Instalação
+
+### Pré-requisitos
+
+- Kiro IDE instalado e atualizado
+- Clone local do repositório `mb-kiro` (`git clone` ou acesso ao repo)
+- Conta Atlassian Cloud com acesso aos produtos desejados (Jira, Confluence, Compass)
+- Navegador disponível para fluxo OAuth 2.1 (ou API token configurado)
+
+### Instalar via pasta local
+
+1. Clone ou atualize o repositório `mb-kiro`:
+   ```bash
+   git clone <repo-url> ~/mb-kiro
+   # ou, se já clonado:
+   cd ~/mb-kiro && git pull
+   ```
+2. Abra o Kiro IDE no seu projeto
+3. Acesse o painel de **Powers** (ícone de Powers na barra lateral)
+4. Clique em **"Import power from a folder"**
+5. Selecione o diretório: `<caminho-do-clone>/powers/mb-atlassian-rovo/`
+6. Aguarde a confirmação de instalação
+
+### Instalar via URL do repositório GitHub
+
+1. Abra o Kiro IDE no seu projeto
+2. Acesse o painel de **Powers**
+3. Clique em **"Install from GitHub URL"**
+4. Informe a URL do repositório apontando para o subdiretório do power
+5. Aguarde a confirmação de instalação
+
+### Verificar instalação
+
+Após instalar, mencione algo relacionado ao Jira ou Confluence no chat (ex: "listar minhas issues") — o power deve ativar automaticamente pelas keywords configuradas. Na primeira utilização, o fluxo OAuth será iniciado no navegador.
 
 ## Troubleshooting
 

@@ -1,7 +1,8 @@
 ---
 name: "Uso do Design System"
 description: "Orienta o Kiro sobre como consumir o Design System MonteBravo no dia a dia: importar componentes, usar tokens, criar variantes."
-inclusion: manual
+inclusion: fileMatch
+fileMatchPattern: "**/*.tsx, **/*.variants.ts, **/shared/ui/**"
 ---
 
 # Uso do Design System — Guia Prático

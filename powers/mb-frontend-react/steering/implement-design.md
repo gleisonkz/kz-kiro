@@ -1,224 +1,212 @@
-# Implement Design
+# Implementar Design do Figma
 
-## Overview
+## Visão Geral
 
-This skill provides a structured workflow for translating Figma designs into production-ready code with pixel-perfect accuracy. It ensures consistent integration with the Figma MCP server, proper use of design tokens, and 1:1 visual parity with designs.
+Workflow estruturado para traduzir designs do Figma em código production-ready seguindo as convenções da MonteBravo: Feature-Sliced Design, TailwindCSS 4 com tokens semânticos, CVA para variantes, e reutilização do Design System (`@monte-bravo/design-system-web`).
 
-## Prerequisites
+## Pré-requisitos
 
-- Figma MCP server must be connected and accessible
-- User must provide a Figma URL in the format: `https://figma.com/design/:fileKey/:fileName?node-id=1-2`
-  - `:fileKey` is the file key
-  - `1-2` is the node ID (the specific component or frame to implement)
-- Project should have an established design system or component library (preferred)
+- Figma MCP server conectado e acessível
+- URL do Figma no formato: `https://figma.com/design/:fileKey/:fileName?node-id=1-2`
+- Design System instalado no projeto (`@monte-bravo/design-system-web`)
 
-## Required Workflow
+## Workflow Obrigatório
 
-**Follow these steps in order. Do not skip steps.**
+**Seguir estes passos em ordem. Não pular etapas.**
 
-### Step 1: Get Node ID
+### Passo 1: Extrair File Key e Node ID
 
-When the user provides a Figma URL, extract the file key and node ID to pass as arguments to MCP tools.
+A partir da URL do Figma, extrair:
 
-**URL format:** `https://figma.com/design/:fileKey/:fileName?node-id=1-2`
+- **File key:** segmento após `/design/`
+- **Node ID:** valor do parâmetro `node-id`
 
-**Extract:**
-
-- **File key:** `:fileKey` (the segment after `/design/`)
-- **Node ID:** `1-2` (the value of the `node-id` query parameter)
-
-**Example:**
-
+**Exemplo:**
 - URL: `https://figma.com/design/kL9xQn2VwM8pYrTb4ZcHjF/DesignSystem?node-id=42-15`
 - File key: `kL9xQn2VwM8pYrTb4ZcHjF`
 - Node ID: `42-15`
 
-### Step 2: Fetch Design Context
+### Passo 2: Buscar Contexto do Design
 
-Run `get_design_context` with the extracted file key and node ID.
+Executar `get_design_context` com file key e node ID.
 
 ```
 get_design_context(fileKey=":fileKey", nodeId="1-2")
 ```
 
-This provides the structured data including:
+Retorna: layout (Auto Layout, constraints, sizing), tipografia, cores/tokens, estrutura de componentes, spacing e padding.
 
-- Layout properties (Auto Layout, constraints, sizing)
-- Typography specifications
-- Color values and design tokens
-- Component structure and variants
-- Spacing and padding values
+**Se a resposta for truncada:**
+1. Executar `get_metadata(fileKey=":fileKey", nodeId="1-2")` para obter o mapa de nodes
+2. Identificar os child nodes necessários
+3. Buscar individualmente com `get_design_context`
 
-**If the response is too large or truncated:**
-
-1. Run `get_metadata(fileKey=":fileKey", nodeId="1-2")` to get the high-level node map
-2. Identify the specific child nodes needed from the metadata
-3. Fetch individual child nodes with `get_design_context(fileKey=":fileKey", nodeId=":childNodeId")`
-
-### Step 3: Capture Visual Reference
-
-Run `get_screenshot` with the same file key and node ID for a visual reference.
+### Passo 3: Capturar Referência Visual
 
 ```
 get_screenshot(fileKey=":fileKey", nodeId="1-2")
 ```
 
-This screenshot serves as the source of truth for visual validation. Keep it accessible throughout implementation.
+Este screenshot é a fonte de verdade para validação visual. Mantê-lo acessível durante toda a implementação.
 
-### Step 4: Download Required Assets
+### Passo 4: Baixar Assets
 
-Download any assets (images, icons, SVGs) returned by the Figma MCP server.
+Baixar imagens, ícones e SVGs retornados pelo Figma MCP.
 
-**IMPORTANT:** Follow these asset rules:
+**Regras de assets:**
+- Se o Figma MCP retornar uma URL `localhost` para imagem/SVG, usar diretamente
+- **NÃO** importar pacotes de ícones novos — todos os assets devem vir do payload do Figma
+- **NÃO** criar placeholders se uma URL localhost foi fornecida
+- Armazenar assets baixados em `src/shared/assets/` ou no diretório de assets do módulo
 
-- If the Figma MCP server returns a `localhost` source for an image or SVG, use that source directly
-- DO NOT import or add new icon packages - all assets should come from the Figma payload
-- DO NOT use or create placeholders if a `localhost` source is provided
-- Assets are served through the Figma MCP server's built-in assets endpoint
+### Passo 5: Traduzir para Convenções MonteBravo
 
-### Step 5: Translate to Project Conventions
+Esta é a etapa mais importante. O output do Figma (geralmente React + Tailwind genérico) deve ser traduzido para as convenções do projeto.
 
-Translate the Figma output into this project's framework, styles, and conventions.
+#### Design System primeiro
 
-**Key principles:**
+Antes de criar qualquer componente novo, verificar se já existe no Design System:
 
-- Treat the Figma MCP output (typically React + Tailwind) as a representation of design and behavior, not as final code style
-- Replace Tailwind utility classes with the project's preferred utilities or design system tokens
-- Reuse existing components (buttons, inputs, typography, icon wrappers) instead of duplicating functionality
-- Use the project's color system, typography scale, and spacing tokens consistently
-- Respect existing routing, state management, and data-fetch patterns
+```tsx
+// Verificar se o componente existe no DS
+import { Button, Input, Modal } from '@monte-bravo/design-system-web';
+```
 
-### Step 6: Achieve 1:1 Visual Parity
+Se o componente existe no `@monte-bravo/design-system-web`, **usar ele**. Não recriar.
 
-Strive for pixel-perfect visual parity with the Figma design.
+#### Tokens semânticos (obrigatório)
 
-**Guidelines:**
+Nunca usar valores hardcoded. Usar tokens semânticos via TailwindCSS:
 
-- Prioritize Figma fidelity to match designs exactly
-- Avoid hardcoded values - use design tokens from Figma where available
-- When conflicts arise between design system tokens and Figma specs, prefer design system tokens but adjust spacing or sizes minimally to match visuals
-- Follow WCAG requirements for accessibility
-- Add component documentation as needed
+```tsx
+// CORRETO — token semântico
+<div className="bg-surface text-foreground p-spacing-md">
 
-### Step 7: Validate Against Figma
+// ERRADO — valor hardcoded
+<div className="bg-white text-gray-900 p-4">
+```
 
-Before marking complete, validate the final UI against the Figma screenshot.
+Tokens disponíveis:
+- Cores: `bg-primary`, `bg-secondary`, `bg-surface`, `bg-muted`, `text-foreground`, `text-muted`, `border-border`
+- Spacing: `p-spacing-xs`, `p-spacing-sm`, `p-spacing-md`, `p-spacing-lg`, `p-spacing-xl`
+- Tipografia: classes definidas no Design System
 
-**Validation checklist:**
+> Fonte de verdade para tokens: `node_modules/@monte-bravo/design-system-web/dist/tokens.css`
 
-- [ ] Layout matches (spacing, alignment, sizing)
-- [ ] Typography matches (font, size, weight, line height)
-- [ ] Colors match exactly
-- [ ] Interactive states work as designed (hover, active, disabled)
-- [ ] Responsive behavior follows Figma constraints
-- [ ] Assets render correctly
-- [ ] Accessibility standards met
+#### Variantes com CVA
 
-## Implementation Rules
+Quando o componente tem variantes visuais (tamanhos, estilos), usar `cva`:
 
-### Component Organization
+```tsx
+// button.variants.ts
+import { cva } from 'class-variance-authority';
 
-- Place UI components in the project's designated design system directory
-- Follow the project's component naming conventions
-- Avoid inline styles unless truly necessary for dynamic values
+export const buttonVariants = cva(
+  'rounded font-medium transition-colors',
+  {
+    variants: {
+      variant: {
+        primary: 'bg-primary text-white hover:bg-primary/90',
+        secondary: 'bg-secondary text-white hover:bg-secondary/90',
+        ghost: 'bg-transparent hover:bg-muted',
+      },
+      size: {
+        sm: 'px-3 py-1.5 text-sm',
+        md: 'px-4 py-2 text-base',
+        lg: 'px-6 py-3 text-lg',
+      },
+    },
+    defaultVariants: { variant: 'primary', size: 'md' },
+  },
+);
+```
 
-### Design System Integration
+Arquivo de variants no mesmo diretório do componente: `Component.tsx` + `component.variants.ts`.
 
-- ALWAYS use components from the project's design system when possible
-- Map Figma design tokens to project design tokens
-- When a matching component exists, extend it rather than creating a new one
-- Document any new components added to the design system
+#### Organização de arquivos (FSD)
 
-### Code Quality
+Onde colocar o componente implementado:
 
-- Avoid hardcoded values - extract to constants or design tokens
-- Keep components composable and reusable
-- Add TypeScript types for component props
-- Include JSDoc comments for exported components
+| Tipo | Local |
+|------|-------|
+| Componente reutilizável global | `src/shared/ui/` |
+| Componente de feature específica | `src/modules/<module>/features/<feature>/ui/` |
+| Widget (bloco grande autossuficiente) | `src/modules/<module>/widgets/<widget>/ui/` |
+| Página | `src/modules/<module>/pages/<page>/ui/` |
 
-## Examples
+#### Estado e dados
 
-### Example 1: Implementing a Button Component
+- Estado global de domínio: Redux Toolkit (slice no segmento `model/`)
+- Dados assíncronos: RTK Query (no segmento `api/`)
+- Estado local de UI: `useState`/`useReducer`
+- Não usar React Context para estado global de domínio
 
-User says: "Implement this Figma button component: https://figma.com/design/kL9xQn2VwM8pYrTb4ZcHjF/DesignSystem?node-id=42-15"
+### Passo 6: Garantir Fidelidade Visual 1:1
 
-**Actions:**
+Validar contra o screenshot do Passo 3:
 
-1. Parse URL to extract fileKey=`kL9xQn2VwM8pYrTb4ZcHjF` and nodeId=`42-15`
-2. Run `get_design_context(fileKey="kL9xQn2VwM8pYrTb4ZcHjF", nodeId="42-15")`
-3. Run `get_screenshot(fileKey="kL9xQn2VwM8pYrTb4ZcHjF", nodeId="42-15")` for visual reference
-4. Download any button icons from the assets endpoint
-5. Check if project has existing button component
-6. If yes, extend it with new variant; if no, create new component using project conventions
-7. Map Figma colors to project design tokens (e.g., `primary-500`, `primary-hover`)
-8. Validate against screenshot for padding, border radius, typography
+- Layout (spacing, alinhamento, sizing)
+- Tipografia (fonte, tamanho, peso, line-height)
+- Cores — devem ser exatas (via tokens)
+- Estados interativos (hover, active, disabled, focus)
+- Comportamento responsivo conforme constraints do Figma
+- Assets renderizando corretamente
+- Acessibilidade (WCAG 2.1 AA): roles, labels, navegação por teclado
 
-**Result:** Button component matching Figma design, integrated with project design system.
+### Passo 7: Validação Final
 
-### Example 2: Building a Dashboard Layout
+Antes de marcar como completo:
 
-User says: "Build this dashboard: https://figma.com/design/pR8mNv5KqXzGwY2JtCfL4D/Dashboard?node-id=10-5"
+- [ ] Componentes do DS reutilizados onde possível
+- [ ] Nenhum valor hardcoded — tudo via tokens
+- [ ] Variants extraídas para `.variants.ts` quando aplicável
+- [ ] Arquivo no diretório correto conforme FSD
+- [ ] Props tipadas com TypeScript
+- [ ] Acessibilidade atendida (roles, labels, keyboard nav)
+- [ ] Visual 1:1 com screenshot do Figma
 
-**Actions:**
+## Regras de Implementação
 
-1. Parse URL to extract fileKey=`pR8mNv5KqXzGwY2JtCfL4D` and nodeId=`10-5`
-2. Run `get_metadata(fileKey="pR8mNv5KqXzGwY2JtCfL4D", nodeId="10-5")` to understand the page structure
-3. Identify main sections from metadata (header, sidebar, content area, cards) and their child node IDs
-4. Run `get_design_context(fileKey="pR8mNv5KqXzGwY2JtCfL4D", nodeId=":childNodeId")` for each major section
-5. Run `get_screenshot(fileKey="pR8mNv5KqXzGwY2JtCfL4D", nodeId="10-5")` for the full page
-6. Download all assets (logos, icons, charts)
-7. Build layout using project's layout primitives
-8. Implement each section using existing components where possible
-9. Validate responsive behavior against Figma constraints
+### Prioridades (em ordem)
 
-**Result:** Complete dashboard matching Figma design with responsive layout.
+1. Reutilizar componente do Design System (`@monte-bravo/design-system-web`)
+2. Estender componente existente com nova variante
+3. Criar componente novo seguindo as convenções
 
-## Best Practices
+### Proibições
 
-### Always Start with Context
+- **NÃO** usar CSS Modules, styled-components ou Emotion
+- **NÃO** usar Zustand, TanStack Query ou Axios direto
+- **NÃO** criar componentes em `src/components/` (não existe esse diretório na arquitetura)
+- **NÃO** usar CommonJS (`require`/`module.exports`)
+- **NÃO** hardcodar cores, spacing ou tipografia
 
-Never implement based on assumptions. Always fetch `get_design_context` and `get_screenshot` first.
+### Composição de componentes
 
-### Incremental Validation
+Componentes compostos usam padrão de namespace:
 
-Validate frequently during implementation, not just at the end. This catches issues early.
+```tsx
+<Modal.Root>
+  <Modal.Trigger asChild>
+    <Button>Abrir</Button>
+  </Modal.Trigger>
+  <Modal.Content>
+    <Modal.Title>Título</Modal.Title>
+    <Modal.Body>Conteúdo</Modal.Body>
+  </Modal.Content>
+</Modal.Root>
+```
 
-### Document Deviations
+## Problemas Comuns
 
-If you must deviate from the Figma design (e.g., for accessibility or technical constraints), document why in code comments.
+### Output do Figma muito grande/truncado
 
-### Reuse Over Recreation
+Usar `get_metadata` para obter estrutura, depois buscar nodes específicos individualmente.
 
-Always check for existing components before creating new ones. Consistency across the codebase is more important than exact Figma replication.
+### Tokens do projeto diferem do Figma
 
-### Design System First
+Preferir tokens do projeto para consistência. Ajustar spacing/sizing minimamente para manter fidelidade visual.
 
-When in doubt, prefer the project's design system patterns over literal Figma translation.
+### Conflito entre DS existente e design novo
 
-## Common Issues and Solutions
-
-### Issue: Figma output is truncated
-
-**Cause:** The design is too complex or has too many nested layers to return in a single response.
-**Solution:** Use `get_metadata` to get the node structure, then fetch specific nodes individually with `get_design_context`.
-
-### Issue: Design doesn't match after implementation
-
-**Cause:** Visual discrepancies between the implemented code and the original Figma design.
-**Solution:** Compare side-by-side with the screenshot from Step 3. Check spacing, colors, and typography values in the design context data.
-
-### Issue: Assets not loading
-
-**Cause:** The Figma MCP server's assets endpoint is not accessible or the URLs are being modified.
-**Solution:** Verify the Figma MCP server's assets endpoint is accessible. The server serves assets at `localhost` URLs. Use these directly without modification.
-
-### Issue: Design token values differ from Figma
-
-**Cause:** The project's design system tokens have different values than those specified in the Figma design.
-**Solution:** When project tokens differ from Figma values, prefer project tokens for consistency but adjust spacing/sizing to maintain visual fidelity.
-
-## Additional Resources
-
-- [Figma MCP Server Documentation](https://developers.figma.com/docs/figma-mcp-server/)
-- [Figma MCP Server Tools and Prompts](https://developers.figma.com/docs/figma-mcp-server/tools-and-prompts/)
-- [Figma Variables and Design Tokens](https://help.figma.com/hc/en-us/articles/15339657135383-Guide-to-variables-in-Figma)
+Se o design pede algo que o DS não suporta, implementar como componente local e abrir issue para avaliar inclusão no DS.

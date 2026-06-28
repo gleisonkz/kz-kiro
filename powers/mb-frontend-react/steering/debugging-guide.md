@@ -20,6 +20,22 @@ O projeto tem o Chrome DevTools MCP configurado. Use-o para:
 
 Para usar: o Chrome deve estar aberto com remote debugging habilitado.
 
+#### Exemplos de uso prático
+
+```
+# Capturar screenshot da página atual
+chrome_screenshot()
+
+# Inspecionar elemento no DOM
+chrome_evaluate({ expression: "document.querySelector('[data-testid=\"login-btn\"]').textContent" })
+
+# Verificar requisições de rede pendentes
+chrome_network_requests()
+
+# Verificar erros no console
+chrome_console_messages()
+```
+
 ### React DevTools
 
 - Inspecionar árvore de componentes e props.
@@ -41,6 +57,7 @@ Para usar: o Chrome deve estar aberto com remote debugging habilitado.
 2. Verificar estado local e hooks.
 3. Verificar se o componente está dentro do Provider correto.
 4. Verificar imports (barrel exports podem mascarar erros).
+5. Verificar se o módulo expõe o componente via `index.ts` (API pública do FSD).
 
 ### Dados não carregam (RTK Query)
 
@@ -48,7 +65,7 @@ Para usar: o Chrome deve estar aberto com remote debugging habilitado.
 2. Verificar Redux DevTools — o endpoint RTK Query está no store?
 3. Verificar tags de cache — invalidação está correta?
 4. Verificar se o `baseQuery` tem a URL correta.
-5. Verificar se o reducer do API está registrado no store.
+5. Verificar se o reducer do API está registrado no store (`app/store/`).
 
 ### Performance lenta
 
@@ -57,13 +74,15 @@ Para usar: o Chrome deve estar aberto com remote debugging habilitado.
 3. Verificar bundle size — imports desnecessários?
 4. Verificar se listas grandes usam virtualização.
 5. Verificar se há fetches duplicados (RTK Query deduplica, mas verificar uso).
+6. Verificar se selectors retornam referências estáveis (memoização).
 
 ### Erro de estado inconsistente
 
 1. Redux DevTools — verificar sequência de actions.
 2. Verificar se selectors retornam referências estáveis.
 3. Verificar se há race conditions em efeitos assíncronos.
-4. Verificar se estado de domínio está no módulo correto (não vazando entre módulos).
+4. Verificar se estado de domínio está no módulo correto (não vazando entre módulos via FSD).
+5. Verificar se há imports cruzados entre módulos (violação de fronteira).
 
 ### Erro de acessibilidade
 
@@ -71,3 +90,18 @@ Para usar: o Chrome deve estar aberto com remote debugging habilitado.
 2. Storybook addon-a11y para componentes isolados.
 3. Verificar roles, labels e navegação por teclado.
 4. Testar com screen reader (VoiceOver no macOS).
+5. Verificar contraste de cores contra WCAG 2.1 AA.
+
+### Erro de roteamento (TanStack Router)
+
+1. Verificar se a rota está registrada no módulo correto.
+2. Verificar se lazy loading da rota está configurado.
+3. Verificar se params e search params estão tipados corretamente.
+4. Verificar se guards/loaders estão rejeitando ou redirecionando.
+
+### Problema com tokens/estilização
+
+1. Verificar se o token existe em `node_modules/@monte-bravo/design-system-web/dist/tokens.css`.
+2. Verificar se o TailwindCSS está processando a classe (verificar `content` paths no config).
+3. Verificar especificidade — classes TailwindCSS podem ser sobrescritas por estilos globais.
+4. Usar Chrome DevTools para inspecionar computed styles do elemento.

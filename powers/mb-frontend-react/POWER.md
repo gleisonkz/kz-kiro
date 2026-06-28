@@ -1,104 +1,101 @@
 ---
-name: "figma"
-displayName: "Figma"
-description: "Comprehensive Figma integration for implementing designs as production-ready code, connecting Figma components to code via Code Connect, and generating project-specific design system rules. Use when implementing UI from Figma files, connecting components to code, creating design system rules, or when user provides Figma URLs."
-keywords: ["figma", "design", "implement", "component", "ui", "code generation", "design system", "code connect", "mapping", "design to code", "rules", "guidelines", "implement design", "implement component", "generate code", "connect component", "design rules", "build design"]
-author: "Figma"
+name: "mb-frontend-react"
+displayName: "Figma — MonteBravo Frontend"
+description: "Integração Figma para projetos frontend React da MonteBravo. Implementa designs como código production-ready seguindo a stack e convenções do projeto (FSD, TailwindCSS 4, CVA, tokens semânticos, Design System). Também conecta componentes via Code Connect."
+keywords: ["figma", "design", "implement", "component", "ui", "code generation", "design system", "code connect", "mapping", "design to code", "implement design", "implement component", "generate code", "connect component", "build design"]
+author: "MonteBravo"
 ---
 
-# Figma
+# Figma — MonteBravo Frontend
 
-## Overview
+## Visão Geral
 
-This Power provides three core capabilities for working with Figma:
+Este Power integra o Figma MCP Server ao workflow de desenvolvimento frontend da MonteBravo, traduzindo designs em código que segue as convenções do projeto: Feature-Sliced Design, TailwindCSS 4 com tokens semânticos, CVA para variantes, e Design System próprio.
 
-1. **Implement Design** — Translate Figma designs into production-ready code with pixel-perfect accuracy
-2. **Code Connect Components** — Connect Figma design components to their code implementations using Code Connect
-3. **Create Design System Rules** — Generate project-specific design system rules that guide consistent Figma-to-code workflows
+## Capacidades
 
-## When to Use This Power
+1. **Implementar Design** — Traduzir designs do Figma em código production-ready com fidelidade visual, respeitando a arquitetura e padrões do projeto.
+2. **Code Connect** — Conectar componentes do Figma às implementações no código via Code Connect.
 
-Activate this Power when the user:
+## Quando Ativar
 
-- Provides a Figma URL and wants to implement the design as code
-- Mentions: implement design, generate code, implement component, build Figma design, build components matching Figma specs
-- Mentions: code connect, connect this component to code, map this component, link component to code, create code connect mapping
-- Mentions: create design system rules, generate rules for my project, set up design rules, customize design system guidelines
-- Wants to establish mappings between Figma designs and code implementations
-- Wants to establish project-specific conventions for Figma-to-code workflows
+Ativar este Power quando o usuário:
 
-## Available MCP Tools
+- Fornecer uma URL do Figma e quiser implementar o design como código
+- Mencionar: implementar design, gerar código a partir do Figma, implementar componente, construir a partir do Figma
+- Mencionar: code connect, conectar componente ao Figma, mapear componente
+- Quiser estabelecer mapeamentos entre designs no Figma e código
 
-The Figma MCP server provides these tools:
+## Ferramentas MCP Disponíveis
 
-| Tool | Description |
-|------|-------------|
-| `get_design_context` | Fetches structured design data (layout, typography, colors, spacing, component structure) for a layer or selection |
-| `get_metadata` | Returns a sparse XML representation with basic layer properties like IDs, names, and dimensions |
-| `get_screenshot` | Captures a visual screenshot of a Figma selection to preserve layout fidelity |
-| `get_variable_defs` | Retrieves variables and styles (colors, spacing, typography) from selections |
-| `get_code_connect_suggestions` | Detects and suggests Code Connect mappings between Figma and code components |
-| `send_code_connect_mappings` | Confirms Code Connect mappings after suggestions are generated |
-| `get_code_connect_map` | Maps Figma node IDs to corresponding code components in your codebase |
-| `add_code_connect_map` | Establishes new mappings between Figma elements and code implementations |
-| `create_design_system_rules` | Generates rule files that guide agents in translating designs to frontend code |
-| `generate_figma_design` | Converts UI descriptions into design layers in Figma files |
-| `get_figjam` | Converts FigJam diagrams to XML format including metadata and node screenshots |
-| `generate_diagram` | Creates FigJam diagrams from Mermaid syntax (flowcharts, Gantt charts, etc.) |
-| `whoami` | Returns authenticated user identity and plan information |
+| Ferramenta | Descrição |
+|------------|-----------|
+| `get_design_context` | Busca dados estruturados do design (layout, tipografia, cores, spacing, estrutura) |
+| `get_metadata` | Retorna representação XML esparsa com propriedades básicas dos layers |
+| `get_screenshot` | Captura screenshot visual de uma seleção no Figma |
+| `get_variable_defs` | Recupera variáveis e estilos (cores, spacing, tipografia) |
+| `get_code_connect_suggestions` | Detecta e sugere mapeamentos Code Connect entre Figma e código |
+| `send_code_connect_mappings` | Confirma mapeamentos Code Connect |
+| `get_code_connect_map` | Mapeia node IDs do Figma a componentes no código |
+| `add_code_connect_map` | Estabelece novos mapeamentos |
+| `whoami` | Retorna identidade do usuário autenticado |
 
 ## Steering
 
-Load the appropriate workflow based on the user's intent:
+Carregar o workflow apropriado conforme a intenção do usuário:
 
-- **Implementing a Figma design as code** → `readPowerSteering("figma", "implement-design.md")`
-- **Connecting Figma components to code via Code Connect** → `readPowerSteering("figma", "code-connect-components.md")`
-- **Creating design system rules for a project** → `readPowerSteering("figma", "create-design-system-rules.md")`
+- **Implementar um design do Figma como código** → `implement-design.md`
+- **Conectar componentes do Figma ao código via Code Connect** → `code-connect-components.md`
 
-## Prerequisites
+## Instalação
 
-- Figma MCP server must be connected and accessible
-- User must provide a Figma URL in the format: `https://figma.com/design/:fileKey/:fileName?node-id=1-2`
-- Project should have an established design system or component library (preferred but not required)
+### Pré-requisitos
 
-## Quick Usage Examples
+- Kiro IDE instalado e atualizado
+- Clone local do repositório `mb-kiro` (`git clone` ou acesso ao repo)
+- Figma MCP server acessível (URL: `https://mcp.figma.com/mcp`)
+- Projeto com Design System configurado (`@monte-bravo/design-system-web`)
 
-### Implement a Design
+### Instalar via pasta local
 
-User: "Implement this Figma button: https://figma.com/design/kL9xQn2VwM8pYrTb4ZcHjF/DesignSystem?node-id=42-15"
+1. Clone ou atualize o repositório `mb-kiro`:
+   ```bash
+   git clone <repo-url> ~/mb-kiro
+   # ou, se já clonado:
+   cd ~/mb-kiro && git pull
+   ```
+2. Abra o Kiro IDE no seu projeto
+3. Acesse o painel de **Powers** (ícone de Powers na barra lateral)
+4. Clique em **"Import power from a folder"**
+5. Selecione o diretório: `<caminho-do-clone>/powers/mb-frontend-react/`
+6. Aguarde a confirmação de instalação
 
-→ Load `implement-design.md` steering, then follow the 7-step workflow to fetch context, capture screenshot, download assets, translate to project conventions, and validate.
+### Instalar via URL do repositório GitHub
 
-### Connect Components via Code Connect
+1. Abra o Kiro IDE no seu projeto
+2. Acesse o painel de **Powers**
+3. Clique em **"Install from GitHub URL"**
+4. Informe a URL do repositório apontando para o subdiretório do power
+5. Aguarde a confirmação de instalação
 
-User: "Connect this Figma button to my code: https://figma.com/design/kL9xQn2VwM8pYrTb4ZcHjF/DesignSystem?node-id=42-15"
+### Verificar instalação
 
-→ Load `code-connect-components.md` steering, then follow the 4-step workflow to get suggestions, scan codebase, present matches, and create mappings.
-
-### Create Design System Rules
-
-User: "Create design system rules for my React project"
-
-→ Load `create-design-system-rules.md` steering, then follow the 5-step workflow to run the tool, analyze codebase, generate rules, save to CLAUDE.md, and validate.
+Após instalar, digite no chat algo como "implementar design do Figma" — o power deve ativar automaticamente pelas keywords configuradas.
 
 ## Troubleshooting
 
-### Figma output is truncated
+### Output do Figma truncado
 
-The design is too complex for a single response. Use `get_metadata` to get the node structure, then fetch specific nodes individually with `get_design_context`.
+O design é complexo demais para uma resposta. Use `get_metadata` para obter a estrutura de nodes e depois busque nodes específicos com `get_design_context`.
 
-### Assets not loading
+### Assets não carregam
 
-Verify the Figma MCP server's assets endpoint is accessible. The server serves assets at `localhost` URLs — use these directly without modification. Do not import new icon packages or create placeholders.
+O Figma MCP server serve assets em URLs `localhost`. Use essas URLs diretamente sem modificação. Não importe pacotes de ícones novos nem crie placeholders.
 
-### No published components found (Code Connect)
+### Nenhum componente publicado encontrado (Code Connect)
 
-Code Connect only works with published components. The user needs to publish the component to a team library in Figma first. Code Connect is only available on Organization and Enterprise plans.
+Code Connect só funciona com componentes publicados em uma team library no Figma. Disponível apenas em planos Organization e Enterprise.
 
-### Design token values differ from Figma
+### Tokens do projeto diferem do Figma
 
-When project tokens differ from Figma values, prefer project tokens for consistency but adjust spacing/sizing to maintain visual fidelity.
-
-### Claude isn't following design system rules
-
-Make rules more specific and actionable. Add "IMPORTANT:" prefix to critical rules. Verify rules are saved in the correct configuration file and restart the IDE or MCP client to reload.
+Quando tokens do projeto diferem dos valores no Figma, preferir tokens do projeto para consistência, mas ajustar spacing/sizing para manter fidelidade visual.
