@@ -1,7 +1,6 @@
 ---
 name: "Governança Kiro MonteBravo"
 description: "Instrui o Kiro sobre a estrutura de padrões organizacionais e como verificar conformidade."
-inclusion: auto
 ---
 
 # Governança Kiro — MonteBravo

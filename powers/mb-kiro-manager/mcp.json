@@ -1,5 +1,0 @@
-{
-  "_comment": "Power mb-kiro-manager não adiciona MCPs extras. Governança é via steering files.",
-  "_version": "0.1.0",
-  "mcpServers": {}
-}
