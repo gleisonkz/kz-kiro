@@ -11,12 +11,14 @@
 # Opções:
 #   --target <caminho>      Caminho para o diretório do projeto destino
 #   --component <nome>      Sincronizar apenas: baseline | archetype | powers | all (padrão: all)
+#   --migrate-powers        Migra powers legados para instalação nativa (com backup)
 #   --dry-run               Simula a execução sem aplicar mudanças
 #   --help                  Exibe esta mensagem de ajuda
 #
 # Exemplos:
 #   ./scripts/sync.sh --target ../meu-projeto
 #   ./scripts/sync.sh --target ../meu-projeto --component baseline
+#   ./scripts/sync.sh --target ../meu-projeto --migrate-powers
 #   ./scripts/sync.sh --target ../meu-projeto --dry-run
 # =============================================================================
 
@@ -112,14 +114,16 @@ sync_files() {
 TARGET_DIR=""
 COMPONENT="all"
 DRY_RUN=false
+MIGRATE_POWERS=false
 
 parse_args() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --target)     TARGET_DIR="$2"; shift 2 ;;
-      --component)  COMPONENT="$2"; shift 2 ;;
-      --dry-run)    DRY_RUN=true; shift ;;
-      --help|-h)    print_help ;;
+      --target)          TARGET_DIR="$2"; shift 2 ;;
+      --component)       COMPONENT="$2"; shift 2 ;;
+      --migrate-powers)  MIGRATE_POWERS=true; shift ;;
+      --dry-run)         DRY_RUN=true; shift ;;
+      --help|-h)         print_help ;;
       *)
         log_error "Argumento desconhecido: $1"
         exit 1
@@ -298,30 +302,105 @@ sync_powers() {
     return
   fi
 
-  local power_names
-  power_names=$(jq -r '.powers[]?.name // empty' "${manifest_path}" 2>/dev/null)
+  local power_count
+  power_count=$(jq -r '.powers | length' "${manifest_path}" 2>/dev/null)
 
-  if [[ -z "${power_names}" ]]; then
+  if [[ "${power_count}" -eq 0 || -z "${power_count}" ]]; then
     log_info "Nenhum power declarado no manifest."
     return
   fi
 
-  while IFS= read -r power; do
-    local power_dir="${REPO_ROOT}/powers/${power}"
+  local i=0
+  while [[ ${i} -lt ${power_count} ]]; do
+    local power
+    local installation_method
+    local manifest_version
 
-    if [[ ! -d "${power_dir}" ]]; then
-      log_warn "Power não encontrado no repositório: ${power}"
+    power=$(jq -r ".powers[${i}].name" "${manifest_path}" 2>/dev/null)
+    installation_method=$(jq -r ".powers[${i}].installation_method // \"legacy\"" "${manifest_path}" 2>/dev/null)
+    manifest_version=$(jq -r ".powers[${i}].version // \"0.0.0\"" "${manifest_path}" 2>/dev/null)
+
+    # Pular entries marcadas como "removed"
+    local status
+    status=$(jq -r ".powers[${i}].status // \"active\"" "${manifest_path}" 2>/dev/null)
+    if [[ "${status}" == "removed" ]]; then
+      ((i++)) || true
       continue
     fi
 
-    log_info "  Power: ${power}"
+    # --- Tratamento de powers em _drafts/ ---
+    if [[ -d "${REPO_ROOT}/powers/_drafts/${power}" && ! -d "${REPO_ROOT}/powers/${power}" ]]; then
+      log_info "  Power '${power}' movido para _drafts/ (placeholder). Removendo referências..."
 
-    # Sincronizar steering files do power
+      if [[ "${DRY_RUN}" == true ]]; then
+        log_warn "[DRY-RUN] Removeria entry do power '${power}' do manifest e limparia steering legado."
+      else
+        # Remover steering legado se existir
+        local legacy_steering="${TARGET_DIR}/.kiro/steering/powers/${power}"
+        if [[ -d "${legacy_steering}" ]]; then
+          rm -rf "${legacy_steering}"
+          log_info "    Steering legado removido: .kiro/steering/powers/${power}/"
+        fi
+
+        # Marcar como "removed" no manifest
+        local tmp_manifest
+        tmp_manifest=$(mktemp)
+        jq --argjson idx "${i}" '.powers[$idx].status = "removed"' "${manifest_path}" > "${tmp_manifest}"
+        mv "${tmp_manifest}" "${manifest_path}"
+        log_info "    Power '${power}' marcado como 'removed' no manifest."
+      fi
+
+      ((i++)) || true
+      continue
+    fi
+
+    # --- Power não encontrado (nem em powers/ nem em _drafts/) ---
+    local power_dir="${REPO_ROOT}/powers/${power}"
+    if [[ ! -d "${power_dir}" ]]; then
+      log_warn "Power '${power}' não encontrado em powers/ nem em _drafts/. Marcando como 'removed'."
+
+      if [[ "${DRY_RUN}" != true ]]; then
+        local tmp_manifest
+        tmp_manifest=$(mktemp)
+        jq --argjson idx "${i}" '.powers[$idx].status = "removed"' "${manifest_path}" > "${tmp_manifest}"
+        mv "${tmp_manifest}" "${manifest_path}"
+      fi
+
+      ((i++)) || true
+      continue
+    fi
+
+    # --- Modo "native" ---
+    if [[ "${installation_method}" == "native" ]]; then
+      log_info "  Power: ${power} (nativo)"
+
+      # Comparar versão do manifest com VERSION file no repositório
+      local repo_version="0.0.0"
+      if [[ -f "${power_dir}/VERSION" ]]; then
+        repo_version=$(cat "${power_dir}/VERSION" | tr -d '[:space:]')
+      fi
+
+      if [[ "${manifest_version}" != "${repo_version}" ]]; then
+        log_warn "  ⚠ Power '${power}' desatualizado: manifest=${manifest_version}, disponível=${repo_version}"
+        log_warn "    → Execute 'git pull' no mb-kiro e use 'Check for updates' no painel de Powers do Kiro IDE."
+      else
+        log_success "  ✓ Power '${power}' atualizado (v${manifest_version})"
+      fi
+
+      ((i++)) || true
+      continue
+    fi
+
+    # --- Modo "legacy" (ou installation_method ausente) ---
+    log_info "  Power: ${power} (legado)"
+    log_warn "  ⚠ Power '${power}' utiliza instalação legada."
+    log_warn "    → Migre para instalação nativa com: ./scripts/sync.sh --target ${TARGET_DIR} --migrate-powers"
+
+    # Executar sync legado: copiar steerings + merge mcp.json
     if [[ -d "${power_dir}/steering" ]]; then
       sync_files "${power_dir}/steering" "${TARGET_DIR}/.kiro/steering/powers/${power}" "*.md"
     fi
 
-    # Merge mcp.json do power no mcp.json principal do projeto
     if [[ -f "${power_dir}/mcp.json" ]]; then
       local mcp_dest="${TARGET_DIR}/.kiro/settings/mcp.json"
       mkdir -p "${TARGET_DIR}/.kiro/settings"
@@ -342,10 +421,252 @@ sync_powers() {
         ((FILES_ADDED++)) || true
       fi
     fi
-  done <<< "${power_names}"
+
+    ((i++)) || true
+  done
 
   if [[ "${DRY_RUN}" == false ]]; then
     log_success "Powers sincronizados."
+  fi
+}
+
+# -----------------------------------------------------------------------------
+# Migração de powers legados para instalação nativa
+# -----------------------------------------------------------------------------
+
+migrate_powers() {
+  log_info "Iniciando migração de powers para instalação nativa..."
+  echo ""
+
+  local manifest_path="${TARGET_DIR}/kiro-manifest.json"
+  local backup_base="${TARGET_DIR}/.kiro/.migration-backup"
+
+  # Verificar jq disponível (necessário para manipular mcp.json)
+  if ! command -v jq &>/dev/null; then
+    log_error "jq é necessário para migração de powers (manipulação de mcp.json)."
+    log_error "Instale com: brew install jq (macOS) ou apt install jq (Linux)"
+    exit 1
+  fi
+
+  local power_count
+  power_count=$(jq -r '.powers | length' "${manifest_path}" 2>/dev/null)
+
+  if [[ "${power_count}" -eq 0 || -z "${power_count}" ]]; then
+    log_info "Nenhum power declarado no manifest."
+    return
+  fi
+
+  # Coletar powers elegíveis para migração
+  local migrated_powers=()
+  local skipped_powers=()
+  local failed_powers=()
+
+  local i=0
+  while [[ ${i} -lt ${power_count} ]]; do
+    local power
+    local installation_method
+    local status
+
+    power=$(jq -r ".powers[${i}].name" "${manifest_path}" 2>/dev/null)
+    installation_method=$(jq -r ".powers[${i}].installation_method // \"legacy\"" "${manifest_path}" 2>/dev/null)
+    status=$(jq -r ".powers[${i}].status // \"active\"" "${manifest_path}" 2>/dev/null)
+
+    # Pular powers removidos
+    if [[ "${status}" == "removed" ]]; then
+      ((i++)) || true
+      continue
+    fi
+
+    # Pular powers já nativos
+    if [[ "${installation_method}" == "native" ]]; then
+      ((i++)) || true
+      continue
+    fi
+
+    log_info "Processando power: ${power}..."
+
+    # Verificar se existe steering legado
+    local legacy_steering="${TARGET_DIR}/.kiro/steering/powers/${power}"
+    if [[ ! -d "${legacy_steering}" ]]; then
+      log_warn "  Power '${power}' já migrado ou sem instalação legada. Pulando."
+      skipped_powers+=("${power}")
+      ((i++)) || true
+      continue
+    fi
+
+    if [[ "${DRY_RUN}" == true ]]; then
+      log_warn "[DRY-RUN] Migraria power '${power}':"
+      log_warn "  - Backup em: .kiro/.migration-backup/${power}/"
+      log_warn "  - Removeria: .kiro/steering/powers/${power}/"
+      log_warn "  - Removeria MCP servers do power no mcp.json do projeto"
+      log_warn "  - Atualizaria manifest: installation_method=native"
+      migrated_powers+=("${power}")
+      ((i++)) || true
+      continue
+    fi
+
+    # --- Execução da migração com rollback em caso de erro ---
+    local migration_ok=true
+    local backup_dir="${backup_base}/${power}"
+
+    # 1. Backup dos arquivos que serão removidos
+    mkdir -p "${backup_dir}"
+
+    # Backup do steering legado
+    if [[ -d "${legacy_steering}" ]]; then
+      cp -R "${legacy_steering}" "${backup_dir}/steering"
+      log_info "  Backup criado: .kiro/.migration-backup/${power}/steering/"
+    fi
+
+    # Backup da entrada relevante do mcp.json (se existir)
+    local mcp_dest="${TARGET_DIR}/.kiro/settings/mcp.json"
+    if [[ -f "${mcp_dest}" ]]; then
+      cp "${mcp_dest}" "${backup_dir}/mcp.json.bak"
+      log_info "  Backup criado: .kiro/.migration-backup/${power}/mcp.json.bak"
+    fi
+
+    # 2. Remover steering legado
+    if ! rm -rf "${legacy_steering}"; then
+      log_error "  Erro ao remover steering legado de '${power}'."
+      migration_ok=false
+    else
+      log_success "  Steering legado removido: .kiro/steering/powers/${power}/"
+    fi
+
+    # 3. Remover MCP servers do power no mcp.json do projeto
+    if [[ "${migration_ok}" == true ]]; then
+      local power_dir="${REPO_ROOT}/powers/${power}"
+      if [[ -f "${power_dir}/mcp.json" && -f "${mcp_dest}" ]]; then
+        local power_servers
+        power_servers=$(jq -r '.mcpServers | keys[]' "${power_dir}/mcp.json" 2>/dev/null)
+
+        if [[ -n "${power_servers}" ]]; then
+          local tmp_mcp
+          tmp_mcp=$(mktemp)
+          local mcp_current="${mcp_dest}"
+
+          # Remover cada server key que pertence ao power
+          local remove_failed=false
+          for server_key in ${power_servers}; do
+            if ! jq --arg key "${server_key}" 'del(.mcpServers[$key])' "${mcp_current}" > "${tmp_mcp}" 2>/dev/null; then
+              remove_failed=true
+              break
+            fi
+            cp "${tmp_mcp}" "${mcp_current}"
+            log_success "  MCP server removido: ${server_key}"
+          done
+
+          rm -f "${tmp_mcp}"
+
+          if [[ "${remove_failed}" == true ]]; then
+            log_error "  Erro ao manipular mcp.json para '${power}'."
+            migration_ok=false
+          fi
+        fi
+      fi
+    fi
+
+    # 4. Atualizar manifest com installation_method="native" e migrated_at
+    if [[ "${migration_ok}" == true ]]; then
+      local tmp_manifest
+      tmp_manifest=$(mktemp)
+      if ! jq --argjson idx "${i}" --arg ts "${TIMESTAMP}" \
+        '.powers[$idx].installation_method = "native" | .powers[$idx].migrated_at = $ts' \
+        "${manifest_path}" > "${tmp_manifest}" 2>/dev/null; then
+        log_error "  Erro ao atualizar manifest para '${power}'."
+        migration_ok=false
+        rm -f "${tmp_manifest}"
+      else
+        mv "${tmp_manifest}" "${manifest_path}"
+        log_success "  Manifest atualizado: installation_method=native, migrated_at=${TIMESTAMP}"
+      fi
+    fi
+
+    # 5. Rollback em caso de erro
+    if [[ "${migration_ok}" == false ]]; then
+      log_error "  Falha na migração de '${power}'. Restaurando backup..."
+
+      # Restaurar steering legado
+      if [[ -d "${backup_dir}/steering" ]]; then
+        mkdir -p "$(dirname "${legacy_steering}")"
+        cp -R "${backup_dir}/steering" "${legacy_steering}"
+        log_info "  Steering restaurado de backup."
+      fi
+
+      # Restaurar mcp.json
+      if [[ -f "${backup_dir}/mcp.json.bak" ]]; then
+        cp "${backup_dir}/mcp.json.bak" "${mcp_dest}"
+        log_info "  mcp.json restaurado de backup."
+      fi
+
+      failed_powers+=("${power}")
+    else
+      migrated_powers+=("${power}")
+      # Limpar diretório pai se vazio (steering/powers/)
+      local powers_steering_dir="${TARGET_DIR}/.kiro/steering/powers"
+      if [[ -d "${powers_steering_dir}" ]] && [[ -z "$(ls -A "${powers_steering_dir}" 2>/dev/null)" ]]; then
+        rmdir "${powers_steering_dir}" 2>/dev/null || true
+      fi
+    fi
+
+    echo ""
+    ((i++)) || true
+  done
+
+  # --- Resumo final ---
+  echo ""
+  echo "============================================"
+  log_info "Resumo da migração:"
+  echo "============================================"
+
+  if [[ ${#migrated_powers[@]} -gt 0 ]]; then
+    echo ""
+    if [[ "${DRY_RUN}" == true ]]; then
+      log_info "Powers que seriam migrados:"
+    else
+      log_success "Powers migrados com sucesso:"
+    fi
+    for p in "${migrated_powers[@]}"; do
+      echo "    ✓ ${p}"
+    done
+  fi
+
+  if [[ ${#skipped_powers[@]} -gt 0 ]]; then
+    echo ""
+    log_warn "Powers pulados (já migrados ou sem instalação legada):"
+    for p in "${skipped_powers[@]}"; do
+      echo "    - ${p}"
+    done
+  fi
+
+  if [[ ${#failed_powers[@]} -gt 0 ]]; then
+    echo ""
+    log_error "Powers com falha na migração (backup restaurado):"
+    for p in "${failed_powers[@]}"; do
+      echo "    ✗ ${p}"
+    done
+  fi
+
+  # Instruções de instalação nativa
+  if [[ ${#migrated_powers[@]} -gt 0 ]]; then
+    echo ""
+    echo "============================================"
+    log_info "Próximos passos — Instalação Nativa:"
+    echo "============================================"
+    echo ""
+    log_info "Para cada power migrado, instale via Kiro IDE:"
+    echo ""
+    log_info "  1. Abra o projeto no Kiro IDE"
+    log_info "  2. Abra o painel de Powers (ícone na barra lateral)"
+    log_info "  3. Clique em 'Import power from a folder'"
+    log_info "  4. Aponte para o diretório do power:"
+    echo ""
+    for p in "${migrated_powers[@]}"; do
+      echo "     ${REPO_ROOT}/powers/${p}/"
+    done
+    echo ""
+    log_info "Após importar, o power será ativado dinamicamente por keywords."
+    echo ""
   fi
 }
 
@@ -382,7 +703,24 @@ main() {
   log_info "Destino:    ${TARGET_DIR}"
   log_info "Componente: ${COMPONENT}"
   [[ "${DRY_RUN}" == true ]] && log_warn "Modo DRY-RUN ativado — nenhuma mudança será aplicada."
+  [[ "${MIGRATE_POWERS}" == true ]] && log_info "Modo migração de powers ativado."
   echo ""
+
+  # Se --migrate-powers foi passado, executar migração e sair
+  if [[ "${MIGRATE_POWERS}" == true ]]; then
+    migrate_powers
+    update_manifest_sync_date
+    echo ""
+    echo "============================================"
+    if [[ "${DRY_RUN}" == true ]]; then
+      log_warn "Migração simulada (dry-run) concluída."
+    else
+      log_success "Migração concluída!"
+    fi
+    echo "============================================"
+    echo ""
+    return
+  fi
 
   case "${COMPONENT}" in
     all)
