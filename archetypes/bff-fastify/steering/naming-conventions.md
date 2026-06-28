@@ -1,3 +1,7 @@
+---
+inclusion: manual
+---
+
 # Convenções de Nomenclatura — BFF Fastify
 
 > **Steering File | Archetype: bff-fastify | Versão: 0.2.0**

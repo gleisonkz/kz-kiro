@@ -1,3 +1,8 @@
+---
+inclusion: fileMatch
+fileMatchPattern: "**/.github/**,**/Dockerfile*,**/docker-compose*"
+---
+
 # Pipelines e Deploy — BFF Fastify
 
 > **Steering File | Archetype: bff-fastify | Versão: 0.1.0**

@@ -1,3 +1,8 @@
+---
+inclusion: fileMatch
+fileMatchPattern: "**/src/app/**,**/src/modules/**,**/src/shared/**"
+---
+
 # Arquitetura do BFF Fastify
 
 > **Steering File | Archetype: bff-fastify | Versão: 0.2.0**
