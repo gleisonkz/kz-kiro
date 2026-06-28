@@ -301,55 +301,69 @@ install_powers() {
     done
   fi
 
-  log_info "Instalando powers..."
+  log_info "Registrando powers para instalação nativa..."
 
   local powers_json="["
   local first=true
+  local installed_powers=()
 
   for power in "${default_powers[@]}"; do
     local power_dir="${REPO_ROOT}/powers/${power}"
 
+    # Filtro: ignorar powers em _drafts/ silenciosamente
+    if [[ -d "${REPO_ROOT}/powers/_drafts/${power}" ]]; then
+      continue
+    fi
+
+    # Power não encontrado
     if [[ ! -d "${power_dir}" ]]; then
       log_warn "Power não encontrado: ${power} (pulando)"
       continue
     fi
 
-    if [[ "${DRY_RUN}" == true ]]; then
-      log_warn "[DRY-RUN] Instalaria power: ${power}"
+    # Validar POWER.md existe
+    if [[ ! -f "${power_dir}/POWER.md" ]]; then
+      log_warn "Power ${power}: POWER.md ausente (pulando)"
       continue
     fi
 
-    # Copiar steering files do power
-    if [[ -d "${power_dir}/steering" ]]; then
-      local power_steering_dest="${TARGET_DIR}/.kiro/steering/powers/${power}"
-      copy_files "${power_dir}/steering" "${power_steering_dest}" "*.md"
-    fi
+    # Validar frontmatter com name e keywords
+    local has_frontmatter=false
+    local has_name=false
+    local has_keywords=false
 
-    # Merge mcp.json do power no mcp.json principal do projeto
-    if [[ -f "${power_dir}/mcp.json" ]]; then
-      mkdir -p "${TARGET_DIR}/.kiro/settings"
-      local mcp_dest="${TARGET_DIR}/.kiro/settings/mcp.json"
-      if command -v jq &>/dev/null && [[ -f "${mcp_dest}" ]]; then
-        # Merge: mcp.json existente + power (power sobrescreve em caso de conflito)
-        local tmp_mcp
-        tmp_mcp=$(mktemp)
-        jq -s '.[0] * { mcpServers: (.[0].mcpServers * .[1].mcpServers) }' \
-          "${mcp_dest}" "${power_dir}/mcp.json" > "${tmp_mcp}"
-        mv "${tmp_mcp}" "${mcp_dest}"
-        log_success "  ${power} (mcp.json mergeado)"
-      elif command -v jq &>/dev/null; then
-        # Não existe mcp.json ainda — copiar diretamente
-        cp "${power_dir}/mcp.json" "${mcp_dest}"
-        log_success "  ${power} (mcp.json criado)"
-      else
-        # Sem jq — copiar como referência separada
-        cp "${power_dir}/mcp.json" "${TARGET_DIR}/.kiro/settings/${power}-mcp.json"
-        log_warn "  ${power} (mcp.json copiado separado — jq não disponível para merge)"
+    if head -1 "${power_dir}/POWER.md" | grep -q '^---$'; then
+      has_frontmatter=true
+      # Extrair bloco frontmatter (entre os dois ---)
+      local frontmatter
+      frontmatter=$(sed -n '2,/^---$/p' "${power_dir}/POWER.md" | sed '$d')
+
+      if echo "${frontmatter}" | grep -q '^name:'; then
+        has_name=true
       fi
-      ((FILES_COPIED++)) || true
+      if echo "${frontmatter}" | grep -q '^keywords:'; then
+        has_keywords=true
+      fi
     fi
 
-    log_success "  Power instalado: ${power}"
+    if [[ "${has_frontmatter}" == false || "${has_name}" == false || "${has_keywords}" == false ]]; then
+      log_warn "Power ${power}: POWER.md sem frontmatter válido (name e keywords obrigatórios) — pulando"
+      continue
+    fi
+
+    # Ler versão do arquivo VERSION (fallback: "0.0.0")
+    local version="0.0.0"
+    if [[ -f "${power_dir}/VERSION" ]]; then
+      version=$(tr -d '[:space:]' < "${power_dir}/VERSION")
+    fi
+
+    if [[ "${DRY_RUN}" == true ]]; then
+      log_warn "[DRY-RUN] Registraria power: ${power} (v${version})"
+      continue
+    fi
+
+    log_success "  Power registrado: ${power} (v${version})"
+    installed_powers+=("${power}")
 
     # Construir JSON array para o manifest
     if [[ "${first}" == true ]]; then
@@ -357,15 +371,18 @@ install_powers() {
     else
       powers_json+=","
     fi
-    powers_json+="\n    { \"name\": \"${power}\", \"version\": \"0.1.0\", \"installed_at\": \"${TIMESTAMP}\" }"
+    powers_json+="\n    { \"name\": \"${power}\", \"version\": \"${version}\", \"source_path\": \"powers/${power}\", \"installation_method\": \"native\", \"installed_at\": \"${TIMESTAMP}\" }"
   done
 
   powers_json+="\n  ]"
   POWERS_JSON="${powers_json}"
 
   if [[ "${DRY_RUN}" == false ]]; then
-    log_success "Powers instalados."
+    log_success "Powers registrados no manifest."
   fi
+
+  # Armazenar lista para exibição de instruções ao final
+  INSTALLED_POWERS=("${installed_powers[@]+"${installed_powers[@]}"}")
 }
 
 generate_manifest() {
@@ -441,6 +458,7 @@ main() {
   echo ""
 
   POWERS_JSON="[]"
+  INSTALLED_POWERS=()
 
   apply_baseline_global
   echo ""
@@ -461,8 +479,16 @@ main() {
     [[ ${FILES_SKIPPED} -gt 0 ]] && log_warn "  Arquivos pulados:  ${FILES_SKIPPED} (já existiam, use --force para sobrescrever)"
     echo ""
     log_info "Próximos passos:"
-    log_info "  1. Abra o projeto no Kiro para validar"
-    log_info "  2. Execute: ./scripts/doctor.sh --target ${TARGET_DIR}"
+    log_info "  1. Abra o projeto no Kiro"
+    log_info "  2. Instale os powers via painel de Powers usando \"Import power from a folder\":"
+
+    if [[ ${#INSTALLED_POWERS[@]} -gt 0 ]]; then
+      for power in "${INSTALLED_POWERS[@]}"; do
+        log_info "     → ${REPO_ROOT}/powers/${power}/"
+      done
+    fi
+
+    log_info "  3. Execute o doctor para validar: ./scripts/doctor.sh --target ${TARGET_DIR}"
   fi
   echo "============================================"
   echo ""
