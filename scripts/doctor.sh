@@ -581,6 +581,7 @@ check_powers() {
   log_info "=== Powers ==="
 
   local manifest_path="${TARGET_DIR}/kiro-manifest.json"
+  local confluence_base="https://montebravo.atlassian.net/wiki/spaces/KIRO/pages/powers-troubleshooting"
 
   if ! command -v jq &>/dev/null; then
     log_warn "jq necessário para verificar powers."
@@ -593,6 +594,13 @@ check_powers() {
     return
   fi
 
+  # Verificar se o repositório mb-kiro está acessível
+  if [[ ! -d "${REPO_ROOT}/powers" ]]; then
+    log_warn "Não foi possível verificar powers no repositório (diretório powers/ não acessível)."
+    add_json_result "warn" "powers" "Não foi possível verificar powers no repositório"
+    return
+  fi
+
   local power_count
   power_count=$(jq -r '.powers | length' "${manifest_path}" 2>/dev/null)
 
@@ -601,33 +609,123 @@ check_powers() {
     return
   fi
 
-  local power_names
-  power_names=$(jq -r '.powers[]?.name // empty' "${manifest_path}" 2>/dev/null)
+  local i=0
+  while [[ ${i} -lt ${power_count} ]]; do
+    local power_name power_version power_method power_status
+    power_name=$(jq -r ".powers[${i}].name // empty" "${manifest_path}" 2>/dev/null)
+    power_version=$(jq -r ".powers[${i}].version // empty" "${manifest_path}" 2>/dev/null)
+    power_method=$(jq -r ".powers[${i}].installation_method // \"legacy\"" "${manifest_path}" 2>/dev/null)
+    power_status=$(jq -r ".powers[${i}].status // \"active\"" "${manifest_path}" 2>/dev/null)
 
-  while IFS= read -r power; do
-    [[ -z "${power}" ]] && continue
+    ((i++)) || true
 
-    if [[ -d "${REPO_ROOT}/powers/${power}" ]]; then
-      log_pass "Power disponível: ${power}"
-      add_json_result "pass" "powers" "Power disponível: ${power}"
-    else
-      log_warn "Power declarado mas não encontrado no mb-kiro: ${power}"
-      add_json_result "warn" "powers" "Power não encontrado: ${power}"
-      if [[ "${VERBOSE}" == true ]]; then
-        log_detail "O power '${power}' está declarado no manifest mas não existe em powers/${power}/"
-        log_detail "Verifique se o nome está correto ou se o power foi removido do repositório."
-        # Listar powers disponíveis como sugestão
-        local available_powers
-        available_powers=$(find "${REPO_ROOT}/powers" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; 2>/dev/null | sort)
-        if [[ -n "${available_powers}" ]]; then
-          log_detail "Powers disponíveis no mb-kiro:"
-          while IFS= read -r p; do
-            log_detail "  - ${p}"
-          done <<< "${available_powers}"
-        fi
+    [[ -z "${power_name}" ]] && continue
+    # Pular powers removidos
+    [[ "${power_status}" == "removed" ]] && continue
+
+    log_info "Verificando power: ${power_name}"
+
+    # --- Verificação 1: Existe em powers/<name>/ (não em _drafts) ---
+    if [[ -d "${REPO_ROOT}/powers/_drafts/${power_name}" ]]; then
+      log_fail "Power '${power_name}' foi movido para _drafts/ (placeholder/descontinuado)."
+      log_info "  → Remova a entrada do manifest ou execute sync.sh para limpeza automática."
+      log_info "  → Troubleshooting: ${confluence_base}#power-em-drafts"
+      add_json_result "fail" "powers" "Power em _drafts: ${power_name}"
+      continue
+    fi
+
+    if [[ ! -d "${REPO_ROOT}/powers/${power_name}" ]]; then
+      log_fail "Power '${power_name}' não encontrado no repositório mb-kiro. O power pode ter sido removido ou renomeado."
+      log_info "  → Remova a entrada do manifest com: jq 'del(.powers[] | select(.name == \"${power_name}\"))' kiro-manifest.json > tmp && mv tmp kiro-manifest.json"
+      log_info "  → Troubleshooting: ${confluence_base}#power-nao-encontrado"
+      add_json_result "fail" "powers" "Power não encontrado: ${power_name}"
+      continue
+    fi
+
+    log_pass "Power disponível no repositório: ${power_name}"
+    add_json_result "pass" "powers" "Power disponível: ${power_name}"
+
+    # --- Verificação 2: POWER.md tem frontmatter com keywords ---
+    local power_md="${REPO_ROOT}/powers/${power_name}/POWER.md"
+    if [[ ! -f "${power_md}" ]]; then
+      log_fail "Power '${power_name}': POWER.md ausente. Necessário para instalação nativa."
+      log_info "  → Troubleshooting: ${confluence_base}#power-md-ausente"
+      add_json_result "fail" "powers" "POWER.md ausente: ${power_name}"
+      continue
+    fi
+
+    # Extrair frontmatter e verificar keywords
+    local has_keywords=false
+    if head -1 "${power_md}" | grep -q '^---$'; then
+      local frontmatter
+      frontmatter=$(sed -n '2,/^---$/p' "${power_md}" | sed '$d')
+      if echo "${frontmatter}" | grep -qE '^keywords:'; then
+        has_keywords=true
       fi
     fi
-  done <<< "${power_names}"
+
+    if [[ "${has_keywords}" == false ]]; then
+      log_fail "Power '${power_name}': Keywords obrigatórias para ativação dinâmica (ausentes no frontmatter do POWER.md)."
+      log_info "  → Adicione 'keywords: [\"keyword1\", \"keyword2\"]' ao frontmatter do POWER.md"
+      log_info "  → Troubleshooting: ${confluence_base}#keywords-ausentes"
+      add_json_result "fail" "powers" "Keywords ausentes: ${power_name}"
+    else
+      log_pass "Power '${power_name}': POWER.md com frontmatter e keywords válidos."
+      add_json_result "pass" "powers" "POWER.md válido: ${power_name}"
+    fi
+
+    # --- Verificação 3: Versão manifest < VERSION file ---
+    local version_file="${REPO_ROOT}/powers/${power_name}/VERSION"
+    if [[ -f "${version_file}" ]]; then
+      local repo_version
+      repo_version=$(tr -d '[:space:]' < "${version_file}")
+
+      if [[ -n "${power_version}" && -n "${repo_version}" && "${power_version}" != "${repo_version}" ]]; then
+        # Comparação simplificada de versão (string compare para SemVer básico)
+        # Usa sort -V para ordenar versões e verifica se a do manifest é a menor
+        local sorted_first
+        sorted_first=$(printf '%s\n%s\n' "${power_version}" "${repo_version}" | sort -V | head -1)
+        if [[ "${sorted_first}" == "${power_version}" && "${power_version}" != "${repo_version}" ]]; then
+          log_warn "Power '${power_name}': versão local (${power_version}) inferior à disponível (${repo_version})."
+          log_info "  → Execute 'git pull' no mb-kiro e use 'Check for updates' no painel de Powers do Kiro IDE."
+          log_info "  → Troubleshooting: ${confluence_base}#power-desatualizado"
+          add_json_result "warn" "powers" "Versão desatualizada: ${power_name} (${power_version} → ${repo_version})"
+        else
+          log_pass "Power '${power_name}': versão atualizada (${power_version})."
+          add_json_result "pass" "powers" "Versão OK: ${power_name} (${power_version})"
+        fi
+      else
+        log_pass "Power '${power_name}': versão atualizada (${power_version:-0.0.0})."
+        add_json_result "pass" "powers" "Versão OK: ${power_name}"
+      fi
+    else
+      log_info "Power '${power_name}': arquivo VERSION ausente no repositório (usando 0.0.0 como fallback)."
+    fi
+
+    # --- Verificação 4: Steering legado em .kiro/steering/powers/<name>/ ---
+    local legacy_steering_dir="${TARGET_DIR}/.kiro/steering/powers/${power_name}"
+    local has_legacy_steering=false
+    if [[ -d "${legacy_steering_dir}" ]]; then
+      has_legacy_steering=true
+    fi
+
+    # --- Verificação 5: Duplicado (legado + native) ---
+    if [[ "${has_legacy_steering}" == true && "${power_method}" == "native" ]]; then
+      log_warn "Power '${power_name}': instalação duplicada detectada (native + legado residual)."
+      log_info "  → Arquivos legados em: ${legacy_steering_dir}"
+      log_info "  → Remova os arquivos legados: rm -rf \"${legacy_steering_dir}\""
+      log_info "  → Ou execute: ./scripts/sync.sh --target \"${TARGET_DIR}\" --migrate-powers"
+      log_info "  → Troubleshooting: ${confluence_base}#instalacao-duplicada"
+      add_json_result "warn" "powers" "Instalação duplicada: ${power_name} (native + legado)"
+    elif [[ "${has_legacy_steering}" == true ]]; then
+      log_warn "Power '${power_name}': instalação legada detectada em .kiro/steering/powers/${power_name}/."
+      log_info "  → Migre para instalação nativa: ./scripts/sync.sh --target \"${TARGET_DIR}\" --migrate-powers"
+      log_info "  → Após migrar, instale via Kiro IDE: Import power from a folder → ${REPO_ROOT}/powers/${power_name}/"
+      log_info "  → Troubleshooting: ${confluence_base}#instalacao-legada"
+      add_json_result "warn" "powers" "Instalação legada: ${power_name}"
+    fi
+
+  done
 }
 
 check_general_health() {
