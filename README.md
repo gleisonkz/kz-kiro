@@ -37,12 +37,23 @@ mb-kiro/
 │   ├── hooks/              # Hooks compartilhados entre archetypes
 │   ├── skills/             # Skills compartilhadas entre archetypes
 │   └── steering/           # Steering files compartilhados entre archetypes
-├── powers/                 # Powers reutilizáveis empacotados para instalação via Kiro
+├── powers/                 # Powers reutilizáveis empacotados para instalação nativa via Kiro
 │   ├── mb-atlassian-rovo/  # Integração com Jira, Confluence e Compass
+│   │   ├── POWER.md        # Manifest do power (com frontmatter + keywords)
+│   │   ├── mcp.json        # MCP servers do power
+│   │   └── VERSION         # Versão SemVer do power
 │   ├── mb-frontend-react/  # Power especializado para projetos React
+│   │   ├── POWER.md
+│   │   ├── mcp.json
+│   │   ├── steering/       # Steering files do power
+│   │   └── VERSION
 │   ├── mb-kiro-manager/    # Gerenciamento e governança do Kiro
-│   ├── mb-mobile-flutter/  # Power especializado para projetos Flutter
-│   └── mb-monorepo-nx/     # Power para monorepos com Nx
+│   │   ├── POWER.md
+│   │   ├── steering/
+│   │   └── VERSION
+│   └── _drafts/            # Powers placeholder (não implementados, ignorados por scripts)
+│       ├── mb-mobile-flutter/
+│       └── mb-monorepo-nx/
 ├── scripts/                # Ferramentas CLI para bootstrap, sync e doctor
 ├── tests/                  # Suíte de testes automatizados
 │   ├── unit/
@@ -63,7 +74,7 @@ mb-kiro/
 |---|---|---|
 | **Baseline Global** | Conjunto de steering files, hooks e políticas aplicáveis a **qualquer** projeto da organização | Sempre — é o mínimo obrigatório |
 | **Archetype** | Configuração completa de Kiro para um tipo específico de stack (steering + hooks + agents + skills) | No início de um projeto novo, para partir de um template alinhado com os padrões da organização |
-| **Power** | Extensão modular do Kiro com funcionalidades específicas, instalável em qualquer projeto | Quando um projeto precisa de capacidades extras sem reescrever do zero |
+| **Power** | Extensão modular do Kiro com funcionalidades específicas, instalável nativamente via Kiro IDE | Quando um projeto precisa de capacidades extras sem reescrever do zero |
 
 ---
 
@@ -71,8 +82,9 @@ mb-kiro/
 
 | Script | Finalidade |
 |---|---|
-| `scripts/bootstrap.sh` | Configura um projeto novo com o archetype e baseline adequados |
+| `scripts/bootstrap.sh` | Configura um projeto novo com o archetype, baseline e registra powers no manifest |
 | `scripts/sync.sh` | Atualiza um projeto existente com a versão mais recente do baseline/archetype/powers |
+| `scripts/sync.sh --migrate-powers` | Migra powers legados (steering copiado) para instalação nativa do Kiro |
 | `scripts/doctor.sh` | Diagnostica o estado atual do Kiro em um projeto e aponta inconsistências |
 
 ---
@@ -96,21 +108,131 @@ A estrutura de testes está organizada em:
 
 ## Como Usar Este Repositório
 
+### Pré-requisitos
+
+- Clone deste repositório localmente (ex: `~/projects/mb-kiro`)
+- [Kiro IDE](https://kiro.dev) instalado
+- `jq` instalado (`brew install jq` no macOS)
+
 ### Time novo iniciando um projeto
 
-1. Clone este repositório localmente ou acesse via script remoto.
-2. Execute `scripts/bootstrap.sh` informando o tipo de projeto e o nome do repositório destino.
-3. O script aplicará o archetype correto e o baseline global no projeto.
+1. Clone este repositório localmente (se ainda não fez):
+   ```bash
+   git clone git@github.com:MonteBravo/mb-kiro.git ~/projects/mb-kiro
+   ```
+
+2. Execute o bootstrap informando o tipo de projeto:
+   ```bash
+   ./scripts/bootstrap.sh --project-type frontend-react --target ../meu-projeto
+   ```
+
+3. O script aplica o baseline + archetype e **registra os powers no manifest** (sem copiar arquivos).
+
+4. **Instale os powers nativamente no Kiro IDE:**
+   - Abra o projeto no Kiro
+   - Abra o painel de Powers (ícone na barra lateral)
+   - Clique em **"Import power from a folder"**
+   - Aponte para o caminho exibido no terminal, ex:
+     ```
+     ~/projects/mb-kiro/powers/mb-frontend-react/
+     ```
+   - Repita para cada power listado no output do bootstrap
+
+5. Valide a configuração:
+   ```bash
+   ./scripts/doctor.sh --target ../meu-projeto
+   ```
+
+### Instalando e atualizando powers
+
+Powers são instalados nativamente via Kiro IDE — os scripts **não copiam** steering files de powers para o projeto.
+
+**Para instalar um power:**
+
+1. Abra o painel de Powers no Kiro IDE
+2. Clique em "Import power from a folder"
+3. Aponte para `<seu-clone-mb-kiro>/powers/<power-name>/`
+4. O power será ativado dinamicamente por keywords no prompt
+
+**Para atualizar um power:**
+
+1. Atualize o clone do mb-kiro:
+   ```bash
+   cd ~/projects/mb-kiro && git pull
+   ```
+2. No Kiro IDE, abra o painel de Powers e clique em **"Check for updates"**
+3. O Kiro detectará e aplicará as mudanças do power
+
+### Migrando projetos existentes (legado → nativo)
+
+Projetos que usavam o modelo antigo (steering files copiados para `.kiro/steering/powers/`) podem migrar para a instalação nativa:
+
+```bash
+./scripts/sync.sh --target ../meu-projeto --migrate-powers
+```
+
+O que a migração faz para cada power:
+1. Cria backup em `.kiro/.migration-backup/<power>/`
+2. Remove os steering files legados de `.kiro/steering/powers/<power>/`
+3. Remove os MCP servers do power do `.kiro/settings/mcp.json` do projeto
+4. Atualiza o manifest com `installation_method: "native"`
+
+Após a migração, instale os powers via "Import power from a folder" no Kiro IDE (instruções exibidas no terminal).
+
+Em caso de falha, o backup é restaurado automaticamente. É possível simular antes com `--dry-run`:
+
+```bash
+./scripts/sync.sh --target ../meu-projeto --migrate-powers --dry-run
+```
 
 ### Time existente sincronizando padrões
 
-1. Execute `scripts/sync.sh` na raiz do projeto alvo.
-2. O script verificará qual versão do baseline/archetype está instalada e atualizará se necessário.
+```bash
+./scripts/sync.sh --target ../meu-projeto
+```
+
+O sync opera em **dual-mode** para powers:
+
+| Situação | Comportamento |
+|---|---|
+| Power com `installation_method: "native"` | Compara versão e avisa se há atualização disponível |
+| Power com `installation_method: "legacy"` | Executa sync legado + avisa para migrar |
+| Power movido para `_drafts/` | Remove referência do manifest automaticamente |
 
 ### Diagnóstico de um projeto
 
-1. Execute `scripts/doctor.sh` na raiz do projeto alvo.
-2. O script listará configurações ausentes, desatualizadas ou inconsistentes.
+```bash
+./scripts/doctor.sh --target ../meu-projeto
+```
+
+O doctor verifica o estado de conformidade do Kiro no projeto, incluindo:
+
+- **Manifest**: existência e validade do `kiro-manifest.json`
+- **Baseline**: steering files presentes e atualizados
+- **Archetype**: hooks, skills e steerings do archetype aplicados
+- **Powers**: validação de cada power declarado no manifest:
+  - Existência do power no repositório mb-kiro (não está em `_drafts/`)
+  - POWER.md com frontmatter válido e keywords (obrigatórias para ativação dinâmica)
+  - Versão atualizada (compara manifest vs `VERSION` file)
+  - Detecção de instalação legada residual (steering em `.kiro/steering/powers/`)
+  - Detecção de instalação duplicada (nativo + legado simultâneo)
+
+Para cada problema detectado, o doctor exibe instruções de resolução e links para o wiki Confluence de troubleshooting.
+
+Opções adicionais:
+```bash
+# Output em JSON para automação
+./scripts/doctor.sh --target ../meu-projeto --output json
+
+# Output detalhado com diffs
+./scripts/doctor.sh --target ../meu-projeto --verbose
+```
+
+### Diretório `powers/_drafts/`
+
+Powers que ainda não possuem funcionalidade implementada ficam em `powers/_drafts/`. Esses powers são **ignorados silenciosamente** pelos scripts (bootstrap, sync, doctor) e não devem ser instalados.
+
+Quando um power placeholder for implementado, basta movê-lo para `powers/<power-name>/`, adicionar um `VERSION` file e garantir que o `POWER.md` possui frontmatter com keywords.
 
 ### Contribuindo com este repositório
 
