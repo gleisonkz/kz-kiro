@@ -26,6 +26,7 @@
 | AWS CloudWatch | - | Destino de logs |
 | AWS X-Ray | - | Distributed tracing |
 | Swashbuckle.AspNetCore | latest | Documentação OpenAPI/Swagger |
+| Confluent.Kafka | latest | Client Kafka para producers e consumers (.NET) |
 | Polly | latest | Resiliência (retry, circuit breaker, timeout) |
 | xUnit | latest | Framework de testes |
 | Moq | latest | Mocking |
@@ -39,13 +40,18 @@
 
 ### Serviços preferidos
 
+<!-- Baseado em ADR: ADR-001 – Padrão arquitetural de comunicação | Confluence: https://montebravo.atlassian.net/wiki/spaces/MBI/pages/219840517 -->
+<!-- Baseado em ADR: ADR-002 – Padronização de Mensageria, Schemas e Nomenclatura Kafka | Confluence: https://montebravo.atlassian.net/wiki/spaces/MBI/pages/249004095 -->
+
 | Serviço | Uso |
 |---|---|
 | AWS Lambda (.NET 8, ARM64) | Runtime principal para serviços serverless |
 | API Gateway | Exposição de APIs REST |
 | PostgreSQL (RDS/Aurora) | Banco de dados relacional |
 | S3 | Armazenamento de objetos |
-| SQS | Filas de mensagens |
+| SQS | Filas de mensagens (cenários de baixo volume) |
+| Amazon MSK | Cluster Apache Kafka gerenciado (broker principal para mensageria) |
+| MSK Connect | Kafka Connect gerenciado para conectores de integração |
 | EventBridge | Barramento de eventos |
 | Secrets Manager / SSM Parameter Store | Gerenciamento de segredos |
 
@@ -380,4 +386,4 @@ O Kiro deve alertar se encontrar uso dessas tecnologias em código novo:
 
 ---
 
-*Versão: 0.2.0 | Última revisão: 2026-05 | Próxima revisão: TODO*
+*Versão: 0.3.0 | Última revisão: 2026-07-08 | Próxima revisão: TODO*
