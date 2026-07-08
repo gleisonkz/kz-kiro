@@ -1,0 +1,32 @@
+{
+  "agents": [
+    {
+      "id": "code",
+      "agent": "cli-code-reviewer",
+      "name": "📝 Qualidade de Código",
+      "summary": "Expandir revisão de código",
+      "prompt": "This is a code review for a C#/.NET backend project. Focus on C# idioms, SOLID principles, async/await correctness, dependency injection, naming conventions and test coverage."
+    },
+    {
+      "id": "architecture",
+      "agent": "cli-architecture-reviewer",
+      "name": "🏗️ Arquitetura",
+      "summary": "Expandir revisão de arquitetura",
+      "prompt": "This is an architecture review for a C#/.NET backend project. Focus on Clean Architecture compliance, DDD boundaries, CQRS separation, layer dependencies, and coupling between modules."
+    },
+    {
+      "id": "security",
+      "agent": "cli-security-reviewer",
+      "name": "🔒 Segurança",
+      "summary": "Expandir revisão de segurança",
+      "prompt": "This is a security review for a C#/.NET backend project. Focus on authentication, authorization, input validation, SQL injection, secret exposure, OWASP Top 10, and secure coding practices. If no security-relevant code was changed, confirm that briefly."
+    },
+    {
+      "id": "performance",
+      "agent": "cli-performance-reviewer",
+      "name": "⚡ Performance",
+      "summary": "Expandir revisão de performance",
+      "prompt": "This is a performance review for a C#/.NET backend project. Focus on async/await misuse, unnecessary allocations, EF Core query efficiency, N+1 problems, caching opportunities, and connection pooling."
+    }
+  ]
+}

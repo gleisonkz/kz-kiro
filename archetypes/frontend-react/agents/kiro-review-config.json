@@ -1,0 +1,32 @@
+{
+  "agents": [
+    {
+      "id": "code",
+      "agent": "cli-code-reviewer",
+      "name": "📝 Qualidade de Código",
+      "summary": "Expandir revisão de código",
+      "prompt": "This is a code review for a frontend React pull request. Focus on React patterns, hooks usage, TypeScript typing, component composition, naming conventions and code readability."
+    },
+    {
+      "id": "architecture",
+      "agent": "cli-architecture-reviewer",
+      "name": "🏗️ Arquitetura",
+      "summary": "Expandir revisão de arquitetura",
+      "prompt": "This is an architecture review for a frontend React pull request. Focus on Feature-Sliced Design compliance, import rules, layer boundaries, shared module usage and coupling between features."
+    },
+    {
+      "id": "accessibility",
+      "agent": "cli-accessibility-reviewer",
+      "name": "♿ Acessibilidade",
+      "summary": "Expandir revisão de acessibilidade",
+      "prompt": "This is an accessibility review for a frontend React pull request. Focus on WCAG 2.1 AA compliance, ARIA attributes, keyboard navigation, focus management, semantic HTML and color contrast. If no UI components were changed, confirm that briefly."
+    },
+    {
+      "id": "performance",
+      "agent": "cli-performance-reviewer",
+      "name": "⚡ Performance",
+      "summary": "Expandir revisão de performance",
+      "prompt": "This is a performance review for a frontend React pull request. Focus on unnecessary re-renders, missing memoization, bundle size impact, lazy loading opportunities, data fetching patterns and rendering optimizations."
+    }
+  ]
+}

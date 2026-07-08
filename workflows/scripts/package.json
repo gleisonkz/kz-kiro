@@ -1,0 +1,25 @@
+{
+  "name": "@montebravo/review-scripts",
+  "version": "1.0.0",
+  "description": "Scripts de lógica para code review automatizado dos archetypes MonteBravo",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^22.10.0",
+    "fast-check": "^3.23.1",
+    "tsx": "^4.23.0",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

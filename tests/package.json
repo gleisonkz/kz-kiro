@@ -1,0 +1,14 @@
+{
+  "name": "@monte-bravo/kiro-archetype-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "fast-check": "3.22.0",
+    "typescript": "5.6.3",
+    "vitest": "2.1.4"
+  }
+}

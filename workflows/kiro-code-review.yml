@@ -1,0 +1,241 @@
+# Kiro CLI headless code review — Template unificado (config-driven)
+# Executa agentes especializados em paralelo via matrix strategy
+# Configuração dos agentes: .kiro/agents/kiro-review-config.json
+# Requires GitHub Secret: KIRO_API_KEY
+
+name: Kiro Code Review
+
+on:
+  pull_request:
+    branches: [develop]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  # --- Preparar lista de arquivos alterados e carregar config ---
+  prepare:
+    name: Prepare
+    runs-on: ubuntu-latest
+    outputs:
+      has_changes: ${{ steps.changes.outputs.has_changes }}
+      changed_files: ${{ steps.changes.outputs.changed_files }}
+      agents: ${{ steps.config.outputs.agents }}
+      agents_count: ${{ steps.config.outputs.agents_count }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get changed files
+        id: changes
+        run: |
+          FILES=$(git diff --name-only origin/develop...HEAD | grep -v '^\.' | head -50)
+          if [ -z "$FILES" ]; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "changed_files=" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+            echo "changed_files<<$EOF" >> "$GITHUB_OUTPUT"
+            echo "$FILES" >> "$GITHUB_OUTPUT"
+            echo "$EOF" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Read review config
+        id: config
+        run: |
+          CONFIG_FILE=".kiro/agents/kiro-review-config.json"
+          if [ ! -f "$CONFIG_FILE" ]; then
+            echo "::error::Config file not found: $CONFIG_FILE"
+            exit 1
+          fi
+          AGENTS=$(jq -c '.agents' "$CONFIG_FILE")
+          echo "agents=${AGENTS}" >> "$GITHUB_OUTPUT"
+          echo "agents_count=$(jq '.agents | length' "$CONFIG_FILE")" >> "$GITHUB_OUTPUT"
+
+  # --- Executar revisões em paralelo via matrix ---
+  review:
+    name: "${{ matrix.agent.name }}"
+    needs: prepare
+    if: needs.prepare.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        agent: ${{ fromJson(needs.prepare.outputs.agents) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Kiro CLI
+        run: curl -fsSL https://cli.kiro.dev/install | bash
+
+      - name: "Run review: ${{ matrix.agent.id }}"
+        env:
+          KIRO_API_KEY: ${{ secrets.KIRO_API_KEY }}
+          CHANGED_FILES: ${{ needs.prepare.outputs.changed_files }}
+          AGENT_NAME: ${{ matrix.agent.agent }}
+          AGENT_PROMPT: ${{ matrix.agent.prompt }}
+        run: |
+          set -eo pipefail
+          KIRO_EXIT=0
+          kiro-cli chat \
+            --no-interactive \
+            --trust-tools=read,grep,glob,code \
+            --agent="${AGENT_NAME}" \
+            "${AGENT_PROMPT}
+
+          The following files were changed in this PR:
+
+          ${CHANGED_FILES}
+
+          Read each changed file and review it following your agent instructions. You have access to the full repository for context. Be direct and actionable. Categorize findings by severity. Format output as markdown." \
+            > /tmp/review-${{ matrix.agent.id }}.txt 2>&1 || KIRO_EXIT=$?
+          if [ $KIRO_EXIT -ne 0 ]; then
+            echo "::warning::${{ matrix.agent.agent }} exited with code $KIRO_EXIT"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: review-${{ matrix.agent.id }}
+          path: /tmp/review-${{ matrix.agent.id }}.txt
+          retention-days: 1
+
+  # --- Consolidar e postar comentário ---
+  post-review:
+    name: "💬 Post Review"
+    needs: [prepare, review]
+    if: always() && needs.prepare.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    env:
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all review artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/reviews
+          pattern: review-*
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Post consolidated review comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AGENTS_COUNT: ${{ needs.prepare.outputs.agents_count }}
+        run: |
+          CONFIG_FILE=".kiro/agents/kiro-review-config.json"
+
+          # Função para extrair conteúdo limpo de um arquivo de review
+          extract_review() {
+            local file="$1"
+            if [ ! -f "$file" ]; then
+              echo "_Nenhum resultado disponível._"
+              return
+            fi
+            local tmp_cleaned="/tmp/review_cleaned_$$.txt"
+            perl -pe 's/\e\[[0-9;]*[mGKHJF]//g; s/\e\][^\a]*\a//g; s/\e\[[\?]?[0-9;]*[a-zA-Z]//g; s/\x1b[^[]*//g; s/\r//g' "$file" > "$tmp_cleaned"
+            local tmp_content="/tmp/review_content_$$.txt"
+            sed -n '/<!-- REVIEW_START -->/,/<!-- REVIEW_END -->/{ /<!-- REVIEW_START -->/d; /<!-- REVIEW_END -->/d; p; }' "$tmp_cleaned" > "$tmp_content"
+            if [ ! -s "$tmp_content" ]; then
+              sed -n '/^#/,$ p' "$tmp_cleaned" | grep -v '^ *▸' | grep -v '^ *Credits:' > "$tmp_content" || true
+            fi
+            if [ ! -s "$tmp_content" ]; then
+              echo "_Nenhum problema encontrado. ✅_"
+            else
+              cat "$tmp_content"
+            fi
+            rm -f "$tmp_cleaned" "$tmp_content"
+          }
+
+          COMMENT_MARKER='<!-- kiro-code-review-bot -->'
+
+          # Construir comentário dinamicamente a partir do config
+          {
+            echo "$COMMENT_MARKER"
+            echo "## 🤖 Kiro Code Review"
+            echo ""
+            echo "Revisão automática executada por ${AGENTS_COUNT} agentes especializados."
+            echo ""
+            echo "---"
+            echo ""
+
+            AGENT_NAMES=""
+            for row in $(jq -c '.agents[]' "$CONFIG_FILE"); do
+              local_id=$(echo "$row" | jq -r '.id')
+              local_name=$(echo "$row" | jq -r '.name')
+              local_summary=$(echo "$row" | jq -r '.summary')
+              local_agent=$(echo "$row" | jq -r '.agent' | sed 's/^cli-//' | sed 's/-reviewer$//')
+
+              echo "### ${local_name}"
+              echo ""
+              echo "<details>"
+              echo "<summary>${local_summary}</summary>"
+              echo ""
+              extract_review "/tmp/reviews/review-${local_id}.txt"
+              echo ""
+              echo "</details>"
+              echo ""
+
+              if [ -n "$AGENT_NAMES" ]; then
+                AGENT_NAMES="${AGENT_NAMES}, ${local_agent}"
+              else
+                AGENT_NAMES="${local_agent}"
+              fi
+            done
+
+            echo "---"
+            echo "*Revisão automática por [Kiro CLI](https://kiro.dev) · agentes: ${AGENT_NAMES}*"
+          } > /tmp/kiro-comment.md
+
+          if [ "$(wc -c < /tmp/kiro-comment.md)" -lt 100 ]; then
+            echo "Review comment too short, skipping."
+            exit 0
+          fi
+
+          # Buscar comentário existente do Kiro nesta PR
+          EXISTING_COMMENT_ID=$(
+            gh api \
+              "repos/${{ github.repository }}/issues/${PR_NUMBER}/comments" \
+              --paginate \
+              --jq ".[] | select(.body | contains(\"$COMMENT_MARKER\")) | .id" \
+            | head -1
+          )
+
+          # Função de publicação com retry
+          post_comment() {
+            local attempt=1
+            local max_attempts=2
+
+            if [ -n "$EXISTING_COMMENT_ID" ]; then
+              while [ $attempt -le $max_attempts ]; do
+                if gh api --method PATCH \
+                  "repos/${{ github.repository }}/issues/comments/${EXISTING_COMMENT_ID}" \
+                  -F "body=@/tmp/kiro-comment.md" 2>/dev/null; then
+                  echo "Comment updated successfully (attempt $attempt)"
+                  return 0
+                fi
+                echo "::warning::Comment update failed (attempt $attempt/$max_attempts)"
+                attempt=$((attempt + 1))
+              done
+            else
+              while [ $attempt -le $max_attempts ]; do
+                if gh pr comment "$PR_NUMBER" --body-file /tmp/kiro-comment.md 2>/dev/null; then
+                  echo "Comment posted successfully (attempt $attempt)"
+                  return 0
+                fi
+                echo "::warning::Comment post failed (attempt $attempt/$max_attempts)"
+                attempt=$((attempt + 1))
+              done
+            fi
+
+            echo "::error::Failed to post review comment after $max_attempts attempts"
+            return 1
+          }
+
+          post_comment

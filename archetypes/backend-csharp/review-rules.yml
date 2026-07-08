@@ -1,0 +1,24 @@
+version: "1.0"
+archetype: backend-csharp
+
+agent_review:
+  enabled: true
+  agent: code-reviewer
+  timeout_seconds: 300
+
+rules:
+  missing_tests:
+    severity: error
+    description: "Código novo sem testes correspondentes"
+  security_violation:
+    severity: error
+    description: "Vulnerabilidade detectada em dependências"
+  breaking_change_without_note:
+    severity: error
+    description: "Breaking change sem documentação"
+  no_async_usage:
+    severity: error
+    description: "Operação I/O sem async/await"
+  coverage_below_threshold:
+    severity: error
+    description: "Cobertura abaixo de 80%"

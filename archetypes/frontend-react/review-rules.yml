@@ -1,0 +1,24 @@
+version: "1.0"
+archetype: frontend-react
+
+agent_review:
+  enabled: true
+  agent: code-reviewer
+  timeout_seconds: 300
+
+rules:
+  missing_tests:
+    severity: error
+    description: "Componente, hook ou utilitário sem teste correspondente"
+  type_errors:
+    severity: error
+    description: "Erros de tipo detectados pelo TypeScript em modo strict"
+  xss_vulnerability:
+    severity: error
+    description: "dangerouslySetInnerHTML sem sanitização"
+  accessibility_issue:
+    severity: warn
+    description: "Violação de acessibilidade (eslint-plugin-jsx-a11y)"
+  typescript_any_usage:
+    severity: warn
+    description: "Uso de 'any' em TypeScript"

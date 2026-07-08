@@ -1,0 +1,32 @@
+{
+  "agents": [
+    {
+      "id": "code",
+      "agent": "cli-code-reviewer",
+      "name": "📝 Qualidade de Código",
+      "summary": "Expandir revisão de código",
+      "prompt": "This is a code review for a BFF Fastify (TypeScript) project. Focus on TypeScript best practices, Fastify patterns, error handling, typing and code organization."
+    },
+    {
+      "id": "architecture",
+      "agent": "cli-architecture-reviewer",
+      "name": "🏗️ Arquitetura",
+      "summary": "Expandir revisão de arquitetura",
+      "prompt": "This is an architecture review for a BFF Fastify (TypeScript) project. Focus on BFF separation of concerns, route organization, plugin structure, bounded contexts and coupling with backend services."
+    },
+    {
+      "id": "api-contract",
+      "agent": "cli-api-contract-reviewer",
+      "name": "📋 Contrato de API",
+      "summary": "Expandir revisão de contrato de API",
+      "prompt": "This is an API contract review for a BFF Fastify (TypeScript) project. Focus on schema validation, backward compatibility, response types, versioning and contract consistency. If no API contract files were changed, confirm that briefly."
+    },
+    {
+      "id": "performance",
+      "agent": "cli-performance-reviewer",
+      "name": "⚡ Performance",
+      "summary": "Expandir revisão de performance",
+      "prompt": "This is a performance review for a BFF Fastify (TypeScript) project. Focus on async patterns, connection pooling, payload size, caching strategies, serialization overhead and response time impact."
+    }
+  ]
+}

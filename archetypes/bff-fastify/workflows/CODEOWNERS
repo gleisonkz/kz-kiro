@@ -1,0 +1,12 @@
+# Gerado pelo archetype bff-fastify
+# Substitua os placeholders pelos times do seu projeto.
+
+# Código fonte principal
+*   {{ team_default }}
+
+# Infraestrutura e CI
+.github/   {{ team_platform }}
+Dockerfile {{ team_platform }}
+
+# Configuração de review
+review-rules.yml {{ team_leads }}
