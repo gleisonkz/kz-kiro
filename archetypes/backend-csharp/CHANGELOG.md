@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.0 (2026-07-08)
+
+### Funcionalidades
+
+- Adicionar sistema de code review automatizado via Kiro CLI
+
+### Documentação
+
+- Atualizar stack de mensageria com Kafka e MSK
+
 ## 0.3.0 (2026-06-19)
 
 ### Funcionalidades
