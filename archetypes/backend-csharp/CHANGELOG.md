@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.0 (2026-07-10)
+
+### Funcionalidades
+
+- Adicionar front-matter fileMatch nos steerings
+
+### Documentação
+
+- Atualizar versões mínimas da stack para 8+
+
 ## 0.4.0 (2026-07-08)
 
 ### Funcionalidades
