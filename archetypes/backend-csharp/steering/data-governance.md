@@ -1,3 +1,8 @@
+---
+inclusion: fileMatch
+fileMatchPattern: "**/*Configuration.cs,**/*DbContext.cs,**/Migrations/**,**/*Entity*.cs"
+---
+
 # Governança de Dados — Backend C#
 
 > **Steering File | Archetype: backend-csharp | Versão: 1.0.0**

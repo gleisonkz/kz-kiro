@@ -1,3 +1,8 @@
+---
+inclusion: fileMatch
+fileMatchPattern: "**/.github/**,**/Dockerfile*,**/docker-compose*,**/*.yml,**/terraform/**"
+---
+
 # Pipelines e Deploy — Backend C#
 
 > **Steering File | Archetype: backend-csharp | Versão: 0.2.0**

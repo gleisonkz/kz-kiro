@@ -1,3 +1,8 @@
+---
+inclusion: fileMatch
+fileMatchPattern: "**/*.cs"
+---
+
 # Convenções de Nomenclatura — Backend C#
 
 > **Steering File | Archetype: backend-csharp | Versão: 0.2.0**

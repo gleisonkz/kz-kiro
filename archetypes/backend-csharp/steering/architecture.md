@@ -1,3 +1,8 @@
+---
+inclusion: fileMatch
+fileMatchPattern: "**/Domain/**,**/Application/**,**/Infrastructure/**,**/Api/**"
+---
+
 # Arquitetura do Backend C#
 
 > **Steering File | Archetype: backend-csharp | Versão: 0.2.0**

@@ -1,3 +1,8 @@
+---
+inclusion: fileMatch
+fileMatchPattern: "**/*.cs,**/*.csproj,**/*.sln"
+---
+
 # Stack Base e Ferramental — Backend C#
 
 > **Steering File | Archetype: backend-csharp | Versão: 0.2.0**
