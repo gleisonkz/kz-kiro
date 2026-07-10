@@ -18,10 +18,10 @@ fileMatchPattern: "**/*.cs,**/*.csproj,**/*.sln"
 
 | Tecnologia | Versão/Modo | Finalidade |
 |---|---|---|
-| .NET | 8 LTS | Runtime e SDK |
+| .NET | 8+ LTS | Runtime e SDK |
 | C# | 12 | Linguagem (nullable reference types enabled) |
-| ASP.NET Core | 8 | Framework web — Minimal APIs |
-| Entity Framework Core | 8 | ORM, migrations, DbContext |
+| ASP.NET Core | 8+ | Framework web — Minimal APIs |
+| Entity Framework Core | 8+ | ORM, migrations, DbContext |
 | PostgreSQL | latest | Banco de dados (Database per Service) |
 | FluentValidation | latest | Validação de commands e queries |
 | MediatR | latest | Mediator pattern — CQRS pipeline |
