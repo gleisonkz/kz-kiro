@@ -177,7 +177,7 @@ fileMatchPattern: "**/*.cs"
 - `PascalCase` (convenção .NET/C#).
 - Verbos de ação: `Create`, `Get`, `Update`, `Delete`, `Calculate`, `Validate`.
 - Métodos assíncronos: sufixo `Async` — `GetByIdAsync`, `SaveChangesAsync`.
-- Handlers: `Handle` (convenção MediatR).
+- Handlers: `Handle` ou `HandleAsync`.
 
 ### Exemplos do domínio financeiro (Guia de Nomeação)
 

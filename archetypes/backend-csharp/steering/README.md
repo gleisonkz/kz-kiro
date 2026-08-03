@@ -47,11 +47,10 @@ O serviço de domínio é a camada que encapsula **regras de negócio**, persist
 |---|---|---|---|
 | .NET | 8 LTS | Sim | Runtime e SDK |
 | C# | 12 | Sim | Nullable reference types enabled |
-| ASP.NET Core | 8 | Sim | Framework web (Minimal APIs) |
+| ASP.NET Core | 8 | Sim | Framework web |
 | Entity Framework Core | 8 | Sim | ORM e migrations |
 | PostgreSQL | latest | Sim | Banco de dados (Database per Service) |
 | FluentValidation | latest | Sim | Validação de requests |
-| MediatR | latest | Sim | Mediator pattern (CQRS) |
 | Wolverine | latest | Sim | Outbox/Inbox, messaging (RFC-003) |
 | Serilog | latest | Sim | Logging estruturado |
 | AWS CloudWatch | - | Sim | Destino de logs |
@@ -73,7 +72,7 @@ O serviço de domínio é a camada que encapsula **regras de negócio**, persist
 src/
 ├── {ServiceName}.Api/                    # Camada de apresentação (host)
 │   ├── Program.cs                        # Entry point e configuração
-│   ├── Endpoints/                        # Minimal API endpoints agrupados por domínio
+│   ├── Endpoints/                        # API endpoints agrupados por domínio
 │   │   └── {Domain}/
 │   │       ├── {Domain}Endpoints.cs      # Registro dos endpoints
 │   │       ├── Get{Resource}Endpoint.cs
@@ -174,7 +173,7 @@ src/{ServiceName}.Api/
 
 ## Padrões de Código
 
-### Minimal API Endpoints
+### API Endpoints
 
 ```csharp
 // src/{ServiceName}.Api/Endpoints/Portfolio/GetPositionsEndpoint.cs
@@ -202,7 +201,7 @@ public static class GetPositionsEndpoint
 }
 ```
 
-### Commands e Queries (CQRS com MediatR)
+### Commands e Queries (CQRS)
 
 ```csharp
 // Command
@@ -210,10 +209,10 @@ public record CreateOrderCommand(
     string AccountId,
     string Ticker,
     decimal Quantity,
-    OrderType Type) : IRequest<CreateOrderResponse>;
+    OrderType Type);
 
 // Query
-public record GetPositionsQuery(string AccountId) : IRequest<GetPositionsResponse>;
+public record GetPositionsQuery(string AccountId);
 ```
 
 ### Domain Entities
@@ -299,8 +298,6 @@ Ao analisar código de backend C#, o Kiro deve verificar:
 
 - [ADR-001 – Padrão arquitetural de comunicação](https://montebravo.atlassian.net/wiki/spaces/MBI/pages/219840517)
 - [Microsoft – Clean Architecture](https://learn.microsoft.com/en-us/dotnet/architecture/modern-web-apps-azure/common-web-application-architectures)
-- [Microsoft – ASP.NET Core Minimal APIs](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis)
-- [MediatR Documentation](https://github.com/jbogard/MediatR)
 - [FluentValidation Documentation](https://docs.fluentvalidation.net/)
 
 ---

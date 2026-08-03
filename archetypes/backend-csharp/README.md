@@ -49,10 +49,10 @@ archetypes/backend-csharp/
 
 ## Stack
 
-- **Runtime:** .NET 8 LTS
+- **Runtime:** .NET 8+ LTS
 - **Linguagem:** C# 12 (nullable reference types enabled)
 - **Framework Web:** ASP.NET Core Minimal APIs
-- **ORM:** Entity Framework Core 8 + PostgreSQL
+- **ORM:** Entity Framework Core 8+ + PostgreSQL
 - **Validação:** FluentValidation
 - **CQRS:** MediatR
 - **Messaging/Outbox:** Wolverine (RabbitMQ/Kafka)

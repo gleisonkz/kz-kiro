@@ -289,7 +289,7 @@ A RFC-003 recomenda o framework [Wolverine](https://wolverinefx.net/) para imple
 
 ---
 
-## CQRS com MediatR
+## CQRS (Commands e Queries)
 
 ### Commands (escrita)
 
@@ -300,9 +300,9 @@ public record CreateOrderCommand(
     string AccountId,
     string Ticker,
     decimal Quantity,
-    OrderType Type) : IRequest<CreateOrderResponse>;
+    OrderType Type);
 
-public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, CreateOrderResponse>
+public class CreateOrderCommandHandler
 {
     private readonly IOrderRepository _repository;
     private readonly IUnitOfWork _unitOfWork;
@@ -313,7 +313,7 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Cre
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<CreateOrderResponse> Handle(
+    public async Task<CreateOrderResponse> HandleAsync(
         CreateOrderCommand request,
         CancellationToken cancellationToken)
     {
@@ -331,9 +331,9 @@ public class CreateOrderCommandHandler : IRequestHandler<CreateOrderCommand, Cre
 Queries representam consultas sem side effects. Podem usar EF Core ou Dapper conforme a necessidade:
 
 ```csharp
-public record GetPositionsQuery(string AccountId) : IRequest<GetPositionsResponse>;
+public record GetPositionsQuery(string AccountId);
 
-public class GetPositionsQueryHandler : IRequestHandler<GetPositionsQuery, GetPositionsResponse>
+public class GetPositionsQueryHandler
 {
     private readonly IPositionRepository _repository;
 
@@ -342,7 +342,7 @@ public class GetPositionsQueryHandler : IRequestHandler<GetPositionsQuery, GetPo
         _repository = repository;
     }
 
-    public async Task<GetPositionsResponse> Handle(
+    public async Task<GetPositionsResponse> HandleAsync(
         GetPositionsQuery request,
         CancellationToken cancellationToken)
     {

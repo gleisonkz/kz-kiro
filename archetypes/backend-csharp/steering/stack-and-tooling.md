@@ -20,11 +20,10 @@ fileMatchPattern: "**/*.cs,**/*.csproj,**/*.sln"
 |---|---|---|
 | .NET | 8+ LTS | Runtime e SDK |
 | C# | 12 | Linguagem (nullable reference types enabled) |
-| ASP.NET Core | 8+ | Framework web — Minimal APIs |
+| ASP.NET Core | 8+ | Framework web |
 | Entity Framework Core | 8+ | ORM, migrations, DbContext |
 | PostgreSQL | latest | Banco de dados (Database per Service) |
 | FluentValidation | latest | Validação de commands e queries |
-| MediatR | latest | Mediator pattern — CQRS pipeline |
 | Wolverine | latest | Outbox/Inbox, messaging, transações distribuídas |
 | Serilog | latest | Logging estruturado (JSON) |
 | Serilog.AspNetCore | latest | Integração com ASP.NET Core |
@@ -80,18 +79,6 @@ fileMatchPattern: "**/*.cs,**/*.csproj,**/*.sln"
 
 ---
 
-## Por que Minimal APIs?
-
-Minimal APIs foram escolhidas por oferecer:
-
-- **Menos boilerplate** — sem controllers, sem herança de `ControllerBase`.
-- **Performance superior** — menor overhead que controllers MVC.
-- **Ideal para Lambda** — startup rápido, menor cold start.
-- **Flexibilidade** — organização por feature/domínio.
-- **Integração nativa** — com OpenAPI, validação e DI.
-
----
-
 ## Por que Wolverine?
 
 O framework [Wolverine](https://wolverinefx.net/) foi escolhido (RFC-003) por oferecer:
@@ -99,14 +86,8 @@ O framework [Wolverine](https://wolverinefx.net/) foi escolhido (RFC-003) por of
 - **Outbox/Inbox integrado** com EF Core — transações ACID em ambiente distribuído.
 - **Suporte a RabbitMQ e Kafka** como brokers.
 - **Integração com .NET Aspire** para desenvolvimento local.
-- **Handlers tipados** — similar ao MediatR mas com messaging integrado.
+- **Handlers tipados** com messaging integrado.
 - **Retry e dead letter** configuráveis.
-
-### Wolverine vs MediatR
-
-- **MediatR**: usar para CQRS interno (commands/queries dentro do serviço).
-- **Wolverine**: usar para messaging entre serviços (outbox/inbox, publicação de eventos).
-- Ambos podem coexistir no mesmo projeto.
 
 ---
 
@@ -151,7 +132,6 @@ O framework [Wolverine](https://wolverinefx.net/) foi escolhido (RFC-003) por of
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\{ServiceName}.Domain\{ServiceName}.Domain.csproj" />
-    <PackageReference Include="MediatR" Version="*" />
     <PackageReference Include="FluentValidation" Version="*" />
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="*" />
   </ItemGroup>
@@ -204,7 +184,7 @@ builder.Host.UseWolverine(opts =>
 
 // Camadas
 builder.Services
-    .AddApplication()       // MediatR, FluentValidation, Behaviors
+    .AddApplication()       // FluentValidation, Behaviors
     .AddInfrastructure(builder.Configuration);  // EF Core, Repositories, Clients
 
 // OpenAPI
@@ -351,7 +331,6 @@ O Kiro deve alertar se encontrar uso dessas tecnologias em código novo:
 
 | Tecnologia | Motivo da rejeição |
 |---|---|
-| Controllers MVC | Mais boilerplate, menor performance que Minimal APIs, maior cold start em Lambda |
 | NHibernate | EF Core é o padrão da organização |
 | Autofac | DI nativo do .NET é suficiente |
 | NSubstitute | Moq é o padrão definido na RFC-002 |
@@ -386,7 +365,6 @@ O Kiro deve alertar se encontrar uso dessas tecnologias em código novo:
 - [ADR-001 – Padrão arquitetural de comunicação](https://montebravo.atlassian.net/wiki/spaces/MBI/pages/219840517)
 - [RFC-003 – Outbox/Inbox para transações financeiras](https://montebravo.atlassian.net/wiki/spaces/MBI/pages/227082241)
 - [Wolverine Framework](https://wolverinefx.net/)
-- [Microsoft – ASP.NET Core Minimal APIs](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis)
 - [Microsoft – Entity Framework Core](https://learn.microsoft.com/en-us/ef/core/)
 
 ---
