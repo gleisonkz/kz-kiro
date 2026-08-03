@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.1 (2026-08-03)
+
+### Refatoração
+
+- Remover MediatR da stack e padronizar CQRS com Wolverine handlers
+
 ## 0.5.0 (2026-07-10)
 
 ### Funcionalidades
