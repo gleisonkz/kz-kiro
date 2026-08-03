@@ -5,6 +5,12 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## 0.3.0 (2026-08-03)
+
+### Funcionalidades
+
+- Adicionar steering de diretrizes para changesets em monorepos
+
 ## 0.2.0 (2026-06-19)
 
 ### Funcionalidades
