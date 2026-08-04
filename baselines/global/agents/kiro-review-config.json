@@ -1,0 +1,11 @@
+{
+  "agents": [
+    {
+      "id": "changeset",
+      "agent": "cli-changeset-reviewer",
+      "name": "📦 Changeset",
+      "summary": "Expandir revisão de changeset",
+      "prompt": "This is a changeset review for a MonteBravo monorepo PR. Focus on: changeset presence, semantic bump correctness, package coverage in frontmatter, description quality (Brazilian Portuguese, present tense, impact-focused, no commit prefixes, no technical names as subject), and ticket references. Use the organizational changeset guidelines as the single source of truth."
+    }
+  ]
+}
