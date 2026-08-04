@@ -5,6 +5,12 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## 0.4.0 (2026-08-04)
+
+### Funcionalidades
+
+- Ativar steering de changeset por file match condicional
+
 ## 0.3.0 (2026-08-03)
 
 ### Funcionalidades
