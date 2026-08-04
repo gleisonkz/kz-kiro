@@ -5,6 +5,12 @@ Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
 
+## 0.6.0 (2026-08-04)
+
+### Funcionalidades
+
+- Adicionar módulo de agents com revisor de changesets
+
 ## 0.5.0 (2026-08-04)
 
 ### Funcionalidades
