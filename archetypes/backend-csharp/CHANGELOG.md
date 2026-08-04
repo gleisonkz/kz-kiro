@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.0 (2026-08-04)
+
+### Funcionalidades
+
+- Adicionar dimensão de review de changeset no config de agents
+
 ## 0.5.1 (2026-08-03)
 
 ### Refatoração
