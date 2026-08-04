@@ -8,95 +8,217 @@
 
 1. [O que é o Kiro](#o-que-é-o-kiro)
 2. [Pré-requisitos](#pré-requisitos)
-3. [Configurando seu ambiente](#configurando-seu-ambiente)
-4. [Iniciando um projeto com Bootstrap](#iniciando-um-projeto-com-bootstrap)
-5. [Entendendo o que foi instalado](#entendendo-o-que-foi-instalado)
-6. [Próximos passos para o time](#próximos-passos-para-o-time)
-7. [Dúvidas frequentes](#dúvidas-frequentes)
+3. [Modelo Dual-Scope](#modelo-dual-scope)
+4. [Etapa 1 — Configurando a máquina (Scope User)](#etapa-1--configurando-a-máquina-scope-user)
+5. [Etapa 2 — Configurando o projeto (Scope Workspace)](#etapa-2--configurando-o-projeto-scope-workspace)
+6. [Entendendo o que foi instalado](#entendendo-o-que-foi-instalado)
+7. [Mantendo tudo atualizado](#mantendo-tudo-atualizado)
+8. [Próximos passos para o time](#próximos-passos-para-o-time)
+9. [Dúvidas frequentes](#dúvidas-frequentes)
 
 ---
 
 ## O que é o Kiro
 
-> TODO: Descrever brevemente o Kiro — o que ele é, qual problema resolve e por que a MonteBravo o adotou.
-
 O Kiro é uma ferramenta de desenvolvimento assistido por IA que opera diretamente no fluxo de trabalho dos times de engenharia, provendo contexto inteligente, automações e steering configurável por projeto e por organização.
+
+Na MonteBravo, o Kiro é configurado em dois níveis:
+
+- **Nível User (máquina)** — Diretrizes organizacionais que valem para todos os projetos.
+- **Nível Workspace (projeto)** — Configurações específicas da stack/tecnologia do projeto.
 
 ---
 
 ## Pré-requisitos
 
-> TODO: Listar as dependências e versões mínimas necessárias para usar o Kiro (ex.: Node.js, versão do Kiro CLI, acesso ao repositório mb-kiro).
-
-- [ ] Kiro CLI instalado (versão mínima: `TODO`)
-- [ ] Acesso ao repositório `MonteBravo/mb-kiro`
-- [ ] Git configurado com credenciais válidas
-- [ ] Acesso aos repositórios de destino
+- [Kiro IDE](https://kiro.dev) instalado
+- Acesso ao repositório `MonteBravo/mb-kiro`
+- Git configurado com credenciais válidas
+- `jq` instalado (`brew install jq` no macOS)
 
 ---
 
-## Configurando seu Ambiente
+## Modelo Dual-Scope
 
-> TODO: Descrever o processo de instalação e configuração inicial do Kiro no ambiente local do desenvolvedor.
+O Kiro na MonteBravo opera com um modelo de **dois escopos**:
 
-```bash
-# TODO: Adicionar comandos de instalação do Kiro CLI
+| Escopo | Localização | Conteúdo | Frequência de Setup |
+|---|---|---|---|
+| **User** | `~/.kiro/` | Baseline organizacional (steering, hooks, MCP) | Uma vez por máquina |
+| **Workspace** | `<projeto>/.kiro/` | Archetype da stack (steering, skills, hooks, agents) | Uma vez por projeto |
 
-# Clone este repositório para referência local (opcional)
-git clone git@github.com:MonteBravo/mb-kiro.git
+**Precedência:** Artefatos do workspace têm precedência sobre o baseline user. Se um steering file existe em ambos os níveis, o Kiro usa apenas o do workspace.
+
+```
+~/.kiro/ (piso organizacional)
+  ├── steering/mb--*.md          ← Baseline: princípios e políticas globais
+  ├── hooks/mb--*.kiro.hook      ← Hooks organizacionais
+  ├── settings/mcp.json          ← Servidores MCP globais
+  └── mb-baseline-version        ← Versão do baseline instalado
+
+<projeto>/.kiro/ (configuração da stack)
+  ├── steering/*.md              ← Archetype: diretrizes da stack
+  ├── skills/*.md                ← Skills especializadas
+  ├── hooks/*.kiro.hook          ← Hooks do archetype
+  ├── agents/*.md                ← Agents do archetype
+  └── settings/mcp.json          ← Servidores MCP do archetype
 ```
 
 ---
 
-## Iniciando um Projeto com Bootstrap
+## Etapa 1 — Configurando a máquina (Scope User)
 
-Para configurar um projeto novo com os padrões organizacionais:
+> **Quando:** Primeira vez na máquina, ou após atualizar o repositório mb-kiro.
+
+Esta etapa instala o baseline organizacional em `~/.kiro/`. Só precisa ser feita **uma vez por máquina** e todos os projetos herdam automaticamente.
 
 ```bash
-# Clone este repositório (se ainda não tiver feito)
-git clone git@github.com:MonteBravo/mb-kiro.git
+# 1. Clone o repositório mb-kiro (se ainda não fez)
+git clone git@github.com:MonteBravo/mb-kiro.git ~/projects/mb-kiro
 
-# Execute o script de bootstrap informando o tipo de projeto
-cd mb-kiro
-./scripts/bootstrap.sh --project-type backend-nest --target ../meu-projeto-backend
+# 2. Instale o baseline global na máquina
+cd ~/projects/mb-kiro
+./scripts/bootstrap.sh --scope user
 ```
 
-> TODO: Documentar todos os parâmetros disponíveis do bootstrap.sh e os archetypes suportados.
+**O que acontece:**
+
+- Cria a estrutura `~/.kiro/steering/`, `~/.kiro/hooks/`, `~/.kiro/settings/`
+- Copia steering files do baseline com prefixo `mb--` (ex: `mb--engineering-principles.md`)
+- Copia hooks do baseline com prefixo `mb--`
+- Mergeia servidores MCP organizacionais em `~/.kiro/settings/mcp.json`
+- Cria `~/.kiro/mb-baseline-version` com a versão instalada
+
+> **Nota:** Em ambientes CI, esta etapa é automaticamente ignorada (o baseline user não se aplica a pipelines).
+
+---
+
+## Etapa 2 — Configurando o projeto (Scope Workspace)
+
+> **Quando:** Ao iniciar um projeto novo ou ao configurar um projeto existente com o Kiro.
+
+Esta etapa instala o archetype específico da stack no projeto.
+
+```bash
+# Execute o bootstrap indicando o tipo de projeto e o destino
+./scripts/bootstrap.sh --scope workspace --project-type backend-csharp --target ../meu-projeto
+```
+
+**Archetypes disponíveis:**
+
+| Tipo | Descrição |
+|---|---|
+| `backend-csharp` | Backend em C# (.NET) |
+| `bff-fastify` | BFF com Fastify (Node.js) |
+| `frontend-react` | Frontend com React |
+| `mobile-flutter` | Aplicativo mobile com Flutter |
+
+**O que acontece:**
+
+- Cria `.kiro/` no projeto com steering, skills, hooks e agents do archetype
+- Gera `kiro-manifest.json` na raiz do projeto (formato v2 com `baseline.scope: "user"`)
+- Gera `.kiro/settings/mcp.json` apenas com servidores do archetype
+- Registra powers no manifest para instalação nativa
+
+**Próximo passo:** Instale os powers no Kiro IDE (o terminal exibirá os caminhos).
 
 ---
 
 ## Entendendo o que foi Instalado
 
-Após o bootstrap, o projeto destino terá:
+### No nível User (`~/.kiro/`)
 
-- **Baseline global** aplicado: princípios de engenharia, segurança e documentação padrão.
-- **Archetype** correspondente ao tipo de projeto: hooks, agents e skills pré-configurados.
-- **Manifesto Kiro** (`kiro-manifest.json`) registrando a versão do baseline e archetype instalados.
+| Diretório | Conteúdo |
+|---|---|
+| `steering/mb--*.md` | Steering files organizacionais (prefixo `mb--` = gerenciado pelo baseline) |
+| `hooks/mb--*.kiro.hook` | Hooks organizacionais |
+| `settings/mcp.json` | Servidores MCP da organização |
+| `mb-baseline-version` | Versão do baseline instalado |
 
-> TODO: Detalhar a estrutura gerada em um projeto após o bootstrap e o significado de cada parte.
+> Arquivos **sem** o prefixo `mb--` são pessoais e nunca serão tocados pelos scripts.
+
+### No nível Workspace (`<projeto>/.kiro/`)
+
+| Diretório | Conteúdo |
+|---|---|
+| `steering/*.md` | Steering files do archetype (específicos da stack) |
+| `skills/*.md` | Skills do archetype |
+| `hooks/*.kiro.hook` | Hooks do archetype |
+| `agents/*.md` | Agents do archetype |
+| `settings/mcp.json` | Servidores MCP do archetype |
+
+### Manifest do projeto (`kiro-manifest.json`)
+
+O manifest registra metadata do projeto, archetype e powers instalados. O campo `baseline.scope: "user"` indica que o baseline está no nível da máquina (não duplicado no workspace).
+
+---
+
+## Mantendo tudo Atualizado
+
+### Atualizando o baseline (user)
+
+```bash
+cd ~/projects/mb-kiro
+git pull
+./scripts/sync.sh --scope user
+```
+
+Isso atualiza todos os steering files, hooks e MCP do baseline em `~/.kiro/` — todos os projetos se beneficiam automaticamente.
+
+### Atualizando o archetype (workspace)
+
+```bash
+cd ~/projects/mb-kiro
+git pull
+./scripts/sync.sh --scope workspace --target ../meu-projeto
+```
+
+Isso atualiza apenas artefatos do archetype no projeto.
+
+### Verificando conformidade
+
+```bash
+# Verificar tudo (user + workspace)
+./scripts/doctor.sh --target ../meu-projeto
+
+# Verificar apenas o baseline da máquina
+./scripts/doctor.sh --scope user
+
+# Verificar apenas o archetype do projeto
+./scripts/doctor.sh --scope workspace --target ../meu-projeto
+```
 
 ---
 
 ## Próximos Passos para o Time
 
-1. Revisar os steering files instalados e adaptar ao contexto específico do projeto.
-2. Adicionar membros do time como colaboradores no repositório do projeto.
-3. Executar `scripts/doctor.sh` para validar que tudo está correto.
-4. Agendar uma sessão de nivelamento com o time sobre o uso do Kiro no dia a dia.
-5. Registrar o projeto no inventário organizacional (TODO: link para o processo).
+1. Todos os membros do time executam a **Etapa 1** (bootstrap --scope user) em suas máquinas.
+2. O Tech Lead executa a **Etapa 2** (bootstrap --scope workspace) para o projeto.
+3. Cada membro instala os powers indicados via painel de Powers no Kiro IDE.
+4. Executar `doctor.sh --target ../meu-projeto` para validar que tudo está correto.
+5. Agendar uma sessão de nivelamento com o time sobre o uso do Kiro no dia a dia.
 
 ---
 
 ## Dúvidas Frequentes
 
-**Como atualizo o baseline de um projeto existente?**
-> Execute `scripts/sync.sh` na raiz do projeto. Veja a documentação do script para opções de atualização seletiva.
+**Preciso executar o bootstrap --scope user toda vez que inicio um projeto novo?**
+> Não. O bootstrap user é feito **uma vez por máquina**. Novos projetos herdam o baseline automaticamente via `~/.kiro/`.
+
+**Como atualizo o baseline de todos os projetos de uma vez?**
+> Execute `sync.sh --scope user`. Como o baseline fica em `~/.kiro/`, todos os projetos se atualizam com um único comando.
 
 **Posso customizar o archetype para o meu projeto?**
-> Sim. Após o bootstrap, você pode modificar os steering files locais. Porém, mudanças que devem valer para todos os projetos do mesmo tipo devem ser propostas como atualização no archetype original, via PR neste repositório.
+> Sim. Após o bootstrap workspace, você pode modificar os steering files em `.kiro/`. Mudanças que devem valer para todos os projetos do mesmo tipo devem ser propostas como atualização no archetype original, via PR no repositório mb-kiro.
+
+**Meu projeto usa o modelo antigo (baseline no workspace). O que fazer?**
+> Execute a migração: `./scripts/sync.sh --target ../meu-projeto --migrate-to-user-scope`. Depois instale o baseline na máquina com `./scripts/bootstrap.sh --scope user`. Veja `docs/governance.md` para detalhes do processo de migração.
+
+**O que significa o prefixo `mb--` nos arquivos?**
+> Arquivos com prefixo `mb--` em `~/.kiro/` são gerenciados pelo baseline organizacional. Eles são atualizados/removidos automaticamente pelo `sync.sh`. Seus arquivos pessoais (sem prefixo) nunca são tocados.
 
 **Onde reporto problemas com o Kiro ou com os padrões organizacionais?**
-> TODO: Adicionar canal oficial e processo de reporte de problemas.
+> Abra uma issue no repositório `MonteBravo/mb-kiro` ou no canal de engenharia da organização.
 
 ---
 

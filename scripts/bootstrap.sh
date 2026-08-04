@@ -2,23 +2,26 @@
 # =============================================================================
 # bootstrap.sh — Bootstrap de Projeto com Padrões Kiro (MonteBravo)
 # =============================================================================
-# Configura um projeto novo (ou existente sem configuração Kiro) com o
-# baseline global, o archetype correto e os powers necessários.
+# Configura o ambiente Kiro no escopo user (baseline global em ~/.kiro/) ou
+# workspace (archetype em <projeto>/.kiro/).
 #
 # Uso:
-#   ./scripts/bootstrap.sh [opções]
+#   ./scripts/bootstrap.sh --scope user [--dry-run] [--force]
+#   ./scripts/bootstrap.sh --scope workspace --target <caminho> --project-type <tipo> [--powers <lista>] [--dry-run] [--force]
 #
 # Opções:
-#   --project-type <tipo>   Tipo de projeto: backend-csharp | backend-nest | bff-fastify | frontend-react | mobile-flutter
-#   --target <caminho>      Caminho para o diretório do projeto destino
-#   --powers <lista>        Lista de powers adicionais separados por vírgula (opcional)
-#   --dry-run               Simula a execução sem aplicar mudanças
-#   --force                 Sobrescreve arquivos existentes sem perguntar
-#   --help                  Exibe esta mensagem de ajuda
+#   --scope <user|workspace> Escopo da instalação (obrigatório)
+#   --project-type <tipo>    Tipo de projeto (obrigatório para --scope workspace)
+#   --target <caminho>       Caminho do diretório do projeto (obrigatório para --scope workspace)
+#   --powers <lista>         Lista de powers adicionais separados por vírgula (opcional)
+#   --dry-run                Simula a execução sem aplicar mudanças
+#   --force                  Sobrescreve arquivos existentes sem perguntar
+#   --help                   Exibe esta mensagem de ajuda
 #
 # Exemplos:
-#   ./scripts/bootstrap.sh --project-type backend-nest --target ../meu-projeto
-#   ./scripts/bootstrap.sh --project-type frontend-react --target ../frontend --dry-run
+#   ./scripts/bootstrap.sh --scope user
+#   ./scripts/bootstrap.sh --scope workspace --project-type backend-csharp --target ../meu-projeto
+#   ./scripts/bootstrap.sh --scope workspace --project-type frontend-react --target ../frontend --dry-run
 # =============================================================================
 
 set -euo pipefail
@@ -28,28 +31,19 @@ set -euo pipefail
 # -----------------------------------------------------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-BASELINE_VERSION="0.1.0"
 TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-# Cores para output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
+# Carregar funções compartilhadas
+source "${SCRIPT_DIR}/lib/common.sh"
 
 # Contadores
 FILES_COPIED=0
 FILES_SKIPPED=0
+MCP_SERVERS_MERGED=0
 
 # -----------------------------------------------------------------------------
 # Funções de utilidade
 # -----------------------------------------------------------------------------
-
-log_info()    { echo -e "${BLUE}[INFO]${NC}  $*"; }
-log_success() { echo -e "${GREEN}[OK]${NC}    $*"; }
-log_warn()    { echo -e "${YELLOW}[WARN]${NC}  $*"; }
-log_error()   { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 
 print_help() {
   grep '^#' "${BASH_SOURCE[0]}" | grep -v '#!/' | sed 's/^# \{0,1\}//'
@@ -109,7 +103,7 @@ copy_files() {
 # Validação de pré-requisitos
 # -----------------------------------------------------------------------------
 
-validate_prerequisites() {
+validate_prerequisites_workspace() {
   log_info "Validando pré-requisitos..."
 
   if ! command -v git &>/dev/null; then
@@ -125,9 +119,10 @@ validate_prerequisites() {
 }
 
 # -----------------------------------------------------------------------------
-# Validação de argumentos
+# Parsing de argumentos
 # -----------------------------------------------------------------------------
 
+SCOPE=""
 PROJECT_TYPE=""
 TARGET_DIR=""
 EXTRA_POWERS=""
@@ -137,6 +132,7 @@ FORCE=false
 parse_args() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
+      --scope)        SCOPE="$2"; shift 2 ;;
       --project-type) PROJECT_TYPE="$2"; shift 2 ;;
       --target)       TARGET_DIR="$2"; shift 2 ;;
       --powers)       EXTRA_POWERS="$2"; shift 2 ;;
@@ -151,108 +147,113 @@ parse_args() {
     esac
   done
 
-  if [[ -z "${PROJECT_TYPE}" ]]; then
-    log_error "Argumento obrigatório ausente: --project-type"
-    log_error "Tipos disponíveis: backend-csharp, backend-nest, bff-fastify, frontend-react, mobile-flutter"
+  # --scope é obrigatório
+  if [[ -z "${SCOPE}" ]]; then
+    log_error "Argumento obrigatório ausente: --scope"
+    log_error "Valores válidos: user, workspace"
+    log_error "Uso: bootstrap.sh --scope <user|workspace> [opções]"
     exit 1
   fi
 
+  # Validar valor do scope
+  if ! validate_scope "${SCOPE}"; then
+    log_error "Valor inválido para --scope: ${SCOPE}"
+    log_error "Valores válidos: user, workspace"
+    exit 1
+  fi
+}
+
+# -----------------------------------------------------------------------------
+# Validação de argumentos para --scope workspace
+# -----------------------------------------------------------------------------
+
+validate_workspace_args() {
+  # --target é obrigatório para workspace
   if [[ -z "${TARGET_DIR}" ]]; then
     log_error "Argumento obrigatório ausente: --target"
+    log_error "--target deve apontar para um diretório existente ao usar --scope workspace."
+    exit 1
+  fi
+
+  # Validar que --target existe e é diretório
+  if ! validate_target "${TARGET_DIR}"; then
+    log_error "Target inválido: '${TARGET_DIR}' não existe ou não é um diretório."
+    log_error "--target deve apontar para um diretório existente."
     exit 1
   fi
 
   # Resolver path absoluto
-  TARGET_DIR="$(cd "${TARGET_DIR}" 2>/dev/null && pwd)" || {
-    log_error "Diretório destino não encontrado: ${TARGET_DIR}"
-    exit 1
-  }
+  TARGET_DIR="$(cd "${TARGET_DIR}" 2>/dev/null && pwd)"
 
-  local valid_types=("backend-csharp" "backend-nest" "bff-fastify" "frontend-react" "mobile-flutter")
-  local valid=false
-  for t in "${valid_types[@]}"; do
-    [[ "${PROJECT_TYPE}" == "${t}" ]] && valid=true && break
-  done
-
-  if [[ "${valid}" == false ]]; then
-    log_error "Tipo de projeto inválido: ${PROJECT_TYPE}"
-    log_error "Tipos disponíveis: ${valid_types[*]}"
+  # --project-type é obrigatório para workspace
+  if [[ -z "${PROJECT_TYPE}" ]]; then
+    log_error "Argumento obrigatório ausente: --project-type"
+    log_error "Tipos disponíveis: $(list_available_archetypes)"
     exit 1
   fi
 
+  # Validar que o archetype existe
   if [[ ! -d "${REPO_ROOT}/archetypes/${PROJECT_TYPE}" ]]; then
-    log_error "Archetype não encontrado: ${PROJECT_TYPE}"
+    log_error "Tipo de projeto inválido: ${PROJECT_TYPE}"
+    log_error "Tipos disponíveis: $(list_available_archetypes)"
     exit 1
   fi
 }
 
-# -----------------------------------------------------------------------------
-# Verificação de bootstrap existente
-# -----------------------------------------------------------------------------
-
-check_existing_bootstrap() {
-  local manifest_path="${TARGET_DIR}/kiro-manifest.json"
-
-  if [[ -f "${manifest_path}" && "${FORCE}" == false ]]; then
-    log_warn "Este projeto já possui um kiro-manifest.json."
-    log_warn "Use --force para sobrescrever ou execute sync.sh para atualizar."
-    echo ""
-    read -r -p "Deseja continuar mesmo assim? [s/N] " response
-    case "${response}" in
-      [sS]) log_info "Continuando..." ;;
-      *)    log_info "Bootstrap cancelado."; exit 0 ;;
-    esac
-  fi
+# Lista archetypes disponíveis no diretório archetypes/
+list_available_archetypes() {
+  local types=()
+  for dir in "${REPO_ROOT}"/archetypes/*/; do
+    [[ ! -d "${dir}" ]] && continue
+    local name
+    name="$(basename "${dir}")"
+    # Ignorar diretórios genéricos que não são archetypes completos
+    if [[ -f "${dir}/VERSION" || -d "${dir}/steering" ]]; then
+      types+=("${name}")
+    fi
+  done
+  echo "${types[*]}"
 }
 
 # -----------------------------------------------------------------------------
-# Funções de bootstrap
+# Verificação de workspace existente (--scope workspace)
 # -----------------------------------------------------------------------------
 
-apply_baseline_global() {
-  log_info "Aplicando baseline global (v${BASELINE_VERSION})..."
+check_existing_workspace() {
+  local kiro_dir="${TARGET_DIR}/.kiro"
 
-  local src="${REPO_ROOT}/baselines/global/steering"
-  local dest="${TARGET_DIR}/.kiro/steering"
+  if [[ -d "${kiro_dir}" && "${FORCE}" == false ]]; then
+    log_error "O workspace já foi inicializado: ${kiro_dir}"
+    log_error "Use --force para sobrescrever ou execute sync.sh --scope workspace --target ${TARGET_DIR} para atualizar."
+    exit 1
+  fi
 
-  copy_files "${src}" "${dest}" "*.md"
+  # Com --force e .kiro/ existente: preparar para sobrescrita preservando specs/
+  if [[ -d "${kiro_dir}" && "${FORCE}" == true ]]; then
+    log_warn "Modo --force: sobrescrevendo .kiro/ existente (preservando specs/)..."
+    if [[ "${DRY_RUN}" == false ]]; then
+      # Preservar specs/ movendo para temp
+      local specs_backup=""
+      if [[ -d "${kiro_dir}/specs" ]]; then
+        specs_backup="$(mktemp -d)"
+        cp -R "${kiro_dir}/specs" "${specs_backup}/specs"
+      fi
 
-  # Copiar mcp.json homologado (baseline + archetype mergeados)
-  local mcp_baseline="${REPO_ROOT}/baselines/global/mcp/mcp.json"
-  local mcp_archetype="${REPO_ROOT}/archetypes/${PROJECT_TYPE}/mcp/mcp.json"
-  local mcp_dest="${TARGET_DIR}/.kiro/settings/mcp.json"
+      # Remover conteúdo do .kiro/ (exceto specs/)
+      find "${kiro_dir}" -mindepth 1 -maxdepth 1 -not -name "specs" -exec rm -rf {} +
 
-  if [[ "${DRY_RUN}" == true ]]; then
-    log_warn "[DRY-RUN] Geraria mcp.json mergeado (baseline + archetype) em ${mcp_dest}"
-  else
-    mkdir -p "${TARGET_DIR}/.kiro/settings"
-    if [[ -f "${mcp_dest}" && "${FORCE}" == false ]]; then
-      log_warn "mcp.json já existe (pulando). Use --force para sobrescrever."
-      ((FILES_SKIPPED++)) || true
-    else
-      if command -v jq &>/dev/null && [[ -f "${mcp_baseline}" && -f "${mcp_archetype}" ]]; then
-        # Merge: baseline + archetype (archetype sobrescreve em caso de conflito)
-        jq -s '
-          {
-            "_comment": "MCPs homologados MonteBravo (baseline global + archetype '"${PROJECT_TYPE}"'). Gerado por bootstrap.sh.",
-            "_version": "0.1.0",
-            "mcpServers": (.[0].mcpServers * .[1].mcpServers)
-          }
-        ' "${mcp_baseline}" "${mcp_archetype}" > "${mcp_dest}"
-        log_success "  mcp.json (baseline + archetype mergeados)"
-        ((FILES_COPIED++)) || true
-      elif [[ -f "${mcp_baseline}" ]]; then
-        cp "${mcp_baseline}" "${mcp_dest}"
-        log_success "  mcp.json (apenas baseline)"
-        ((FILES_COPIED++)) || true
+      # Restaurar specs/ se havia
+      if [[ -n "${specs_backup}" && -d "${specs_backup}/specs" ]]; then
+        # specs/ já ficou intacto no find acima (excluído via -not -name "specs")
+        rm -rf "${specs_backup}"
       fi
     fi
   fi
-
-  if [[ "${DRY_RUN}" == false ]]; then
-    log_success "Baseline global aplicado."
-  fi
 }
+
+# -----------------------------------------------------------------------------
+# Funções de bootstrap — Scope Workspace
+# -----------------------------------------------------------------------------
 
 apply_archetype() {
   local archetype_dir="${REPO_ROOT}/archetypes/${PROJECT_TYPE}"
@@ -282,10 +283,36 @@ apply_archetype() {
   if [[ -d "${archetype_dir}/agents" ]]; then
     log_info "  Copiando agents..."
     copy_files "${archetype_dir}/agents" "${TARGET_DIR}/.kiro/agents" "*.md"
+    copy_files "${archetype_dir}/agents" "${TARGET_DIR}/.kiro/agents" "*.json"
   fi
 
   if [[ "${DRY_RUN}" == false ]]; then
     log_success "Archetype ${PROJECT_TYPE} aplicado."
+  fi
+}
+
+generate_mcp_workspace() {
+  log_info "Gerando MCP config (apenas archetype)..."
+
+  local mcp_archetype="${REPO_ROOT}/archetypes/${PROJECT_TYPE}/mcp/mcp.json"
+  local mcp_dest="${TARGET_DIR}/.kiro/settings/mcp.json"
+
+  if [[ "${DRY_RUN}" == true ]]; then
+    log_warn "[DRY-RUN] Geraria mcp.json em ${mcp_dest} (apenas servidores do archetype)"
+    return
+  fi
+
+  mkdir -p "${TARGET_DIR}/.kiro/settings"
+
+  if [[ -f "${mcp_archetype}" ]]; then
+    cp "${mcp_archetype}" "${mcp_dest}"
+    log_success "  mcp.json gerado (servidores do archetype)"
+    ((FILES_COPIED++)) || true
+  else
+    # Criar mcp.json vazio se archetype não define MCP
+    echo '{ "mcpServers": {} }' > "${mcp_dest}"
+    log_success "  mcp.json gerado (vazio — archetype sem MCP)"
+    ((FILES_COPIED++)) || true
   fi
 }
 
@@ -334,7 +361,6 @@ install_powers() {
 
     if head -1 "${power_dir}/POWER.md" | grep -q '^---$'; then
       has_frontmatter=true
-      # Extrair bloco frontmatter (entre os dois ---)
       local frontmatter
       frontmatter=$(sed -n '2,/^---$/p' "${power_dir}/POWER.md" | sed '$d')
 
@@ -365,7 +391,6 @@ install_powers() {
     log_success "  Power registrado: ${power} (v${version})"
     installed_powers+=("${power}")
 
-    # Construir JSON array para o manifest
     if [[ "${first}" == true ]]; then
       first=false
     else
@@ -381,42 +406,47 @@ install_powers() {
     log_success "Powers registrados no manifest."
   fi
 
-  # Armazenar lista para exibição de instruções ao final
   INSTALLED_POWERS=("${installed_powers[@]+"${installed_powers[@]}"}")
 }
 
-generate_manifest() {
-  log_info "Gerando kiro-manifest.json..."
+generate_manifest_v2() {
+  log_info "Gerando kiro-manifest.json (v2)..."
 
   local manifest_path="${TARGET_DIR}/kiro-manifest.json"
 
   if [[ "${DRY_RUN}" == true ]]; then
-    log_warn "[DRY-RUN] Geraria manifest em: ${manifest_path}"
+    log_warn "[DRY-RUN] Geraria manifest v2 em: ${manifest_path}"
     return
   fi
 
   local project_name
   project_name=$(basename "${TARGET_DIR}")
 
+  # Ler versão do archetype
+  local archetype_version="0.0.0"
+  local archetype_version_file="${REPO_ROOT}/archetypes/${PROJECT_TYPE}/VERSION"
+  if [[ -f "${archetype_version_file}" ]]; then
+    archetype_version=$(tr -d '[:space:]' < "${archetype_version_file}")
+  fi
+
   cat > "${manifest_path}" <<EOF
 {
-  "_generated_by": "mb-kiro bootstrap.sh",
+  "_generated_by": "bootstrap.sh --scope workspace",
   "_generated_at": "${TIMESTAMP}",
-  "schema_version": "0.1.0",
+  "schema_version": "2.0.0",
   "project": {
     "name": "${project_name}",
     "repository": "MonteBravo/${project_name}"
   },
   "baseline": {
-    "version": "${BASELINE_VERSION}",
-    "source": "MonteBravo/mb-kiro",
-    "installed_at": "${TIMESTAMP}",
-    "last_synced_at": "${TIMESTAMP}"
+    "scope": "user",
+    "source": "github.com/montebravo/mb-kiro"
   },
   "archetype": {
     "name": "${PROJECT_TYPE}",
-    "version": "0.1.0",
-    "installed_at": "${TIMESTAMP}"
+    "version": "${archetype_version}",
+    "installed_at": "${TIMESTAMP}",
+    "last_synced_at": "${TIMESTAMP}"
   },
   "powers": $(echo -e "${POWERS_JSON}"),
   "exceptions": []
@@ -426,29 +456,29 @@ EOF
   # Validar JSON se jq estiver disponível
   if command -v jq &>/dev/null; then
     if jq '.' "${manifest_path}" > /dev/null 2>&1; then
-      log_success "kiro-manifest.json gerado e validado."
+      log_success "kiro-manifest.json (v2) gerado e validado."
     else
       log_warn "kiro-manifest.json gerado mas com possível erro de formatação."
     fi
   else
-    log_success "kiro-manifest.json gerado."
+    log_success "kiro-manifest.json (v2) gerado."
   fi
 }
 
 # -----------------------------------------------------------------------------
-# Fluxo principal
+# Fluxo principal — Scope Workspace
 # -----------------------------------------------------------------------------
 
-main() {
+bootstrap_workspace() {
   echo ""
   echo "============================================"
-  echo "  mb-kiro Bootstrap — MonteBravo"
+  echo "  mb-kiro Bootstrap — Scope Workspace"
   echo "============================================"
   echo ""
 
-  parse_args "$@"
-  validate_prerequisites
-  check_existing_bootstrap
+  validate_workspace_args
+  validate_prerequisites_workspace
+  check_existing_workspace
 
   log_info "Projeto tipo:  ${PROJECT_TYPE}"
   log_info "Destino:       ${TARGET_DIR}"
@@ -460,13 +490,13 @@ main() {
   POWERS_JSON="[]"
   INSTALLED_POWERS=()
 
-  apply_baseline_global
-  echo ""
   apply_archetype
+  echo ""
+  generate_mcp_workspace
   echo ""
   install_powers
   echo ""
-  generate_manifest
+  generate_manifest_v2
 
   echo ""
   echo "============================================"
@@ -479,8 +509,9 @@ main() {
     [[ ${FILES_SKIPPED} -gt 0 ]] && log_warn "  Arquivos pulados:  ${FILES_SKIPPED} (já existiam, use --force para sobrescrever)"
     echo ""
     log_info "Próximos passos:"
-    log_info "  1. Abra o projeto no Kiro"
-    log_info "  2. Instale os powers via painel de Powers usando \"Import power from a folder\":"
+    log_info "  1. Instale o baseline global: ./scripts/bootstrap.sh --scope user"
+    log_info "  2. Abra o projeto no Kiro"
+    log_info "  3. Instale os powers via painel de Powers usando \"Import power from a folder\":"
 
     if [[ ${#INSTALLED_POWERS[@]} -gt 0 ]]; then
       for power in "${INSTALLED_POWERS[@]}"; do
@@ -488,10 +519,225 @@ main() {
       done
     fi
 
-    log_info "  3. Execute o doctor para validar: ./scripts/doctor.sh --target ${TARGET_DIR}"
+    log_info "  4. Execute o doctor para validar: ./scripts/doctor.sh --scope workspace --target ${TARGET_DIR}"
   fi
   echo "============================================"
   echo ""
+}
+
+# -----------------------------------------------------------------------------
+# Fluxo principal — Scope User
+# -----------------------------------------------------------------------------
+
+bootstrap_user() {
+  echo ""
+  echo "============================================"
+  echo "  mb-kiro Bootstrap — Scope User"
+  echo "============================================"
+  echo ""
+
+  # Em CI, skip com WARNING e exit 0
+  if is_ci_environment; then
+    log_warn "Ambiente CI detectado. Instalação user-level é desnecessária em CI."
+    log_warn "Encerrando sem modificar ~/.kiro/."
+    exit 0
+  fi
+
+  # Validar VERSION
+  local version_file="${REPO_ROOT}/baselines/global/VERSION"
+  if [[ ! -f "${version_file}" ]]; then
+    log_error "Arquivo VERSION não encontrado: ${version_file}"
+    log_error "O arquivo baselines/global/VERSION é obrigatório e deve conter versão semântica (MAJOR.MINOR.PATCH)."
+    exit 1
+  fi
+
+  local baseline_version
+  baseline_version="$(tr -d '[:space:]' < "${version_file}")"
+
+  if ! validate_semver "${baseline_version}"; then
+    log_error "Versão inválida em ${version_file}: '${baseline_version}'"
+    log_error "O arquivo baselines/global/VERSION deve conter versão semântica válida (MAJOR.MINOR.PATCH)."
+    exit 1
+  fi
+
+  local user_kiro_dir
+  user_kiro_dir="$(get_user_kiro_dir)"
+
+  log_info "Baseline versão: ${baseline_version}"
+  log_info "Destino:         ${user_kiro_dir}"
+  [[ "${DRY_RUN}" == true ]] && log_warn "Modo DRY-RUN ativado — nenhuma mudança será aplicada."
+  [[ "${FORCE}" == true ]] && log_warn "Modo --force ativado — arquivos existentes serão sobrescritos."
+  echo ""
+
+  # Criar estrutura de diretórios se necessário
+  if [[ ! -d "${user_kiro_dir}" ]]; then
+    if [[ "${DRY_RUN}" == true ]]; then
+      log_info "[DRY-RUN] Criaria diretórios: ${user_kiro_dir}/{steering,hooks,settings}"
+    else
+      mkdir -p "${user_kiro_dir}/steering"
+      mkdir -p "${user_kiro_dir}/hooks"
+      mkdir -p "${user_kiro_dir}/settings"
+      log_success "Estrutura de diretórios criada: ${user_kiro_dir}/"
+    fi
+  else
+    # Garantir subdiretórios existem
+    if [[ "${DRY_RUN}" == false ]]; then
+      mkdir -p "${user_kiro_dir}/steering"
+      mkdir -p "${user_kiro_dir}/hooks"
+      mkdir -p "${user_kiro_dir}/settings"
+    fi
+  fi
+
+  # Copiar steering files com prefixo mb--
+  local steering_dir="${REPO_ROOT}/baselines/global/steering"
+  log_info "Copiando steering files..."
+  if [[ -d "${steering_dir}" ]]; then
+    for file in "${steering_dir}"/*.md; do
+      [[ ! -f "${file}" ]] && continue
+      local filename
+      filename="$(basename "${file}")"
+
+      # Pular README.md
+      [[ "${filename}" == "README.md" ]] && continue
+
+      local dest_file="${user_kiro_dir}/steering/$(add_prefix "${filename}")"
+
+      if [[ "${DRY_RUN}" == true ]]; then
+        log_info "  [DRY-RUN] Copiaria: ${filename} → $(add_prefix "${filename}")"
+        ((FILES_COPIED++)) || true
+        continue
+      fi
+
+      if [[ -f "${dest_file}" && "${FORCE}" == false ]]; then
+        log_warn "Arquivo já existe (pulando): $(add_prefix "${filename}"). Use --force para sobrescrever."
+        ((FILES_SKIPPED++)) || true
+      else
+        cp "${file}" "${dest_file}"
+        log_success "  ${filename} → $(add_prefix "${filename}")"
+        ((FILES_COPIED++)) || true
+      fi
+    done
+  fi
+
+  # Copiar hooks com prefixo mb--
+  local hooks_dir="${REPO_ROOT}/baselines/global/hooks"
+  echo ""
+  log_info "Copiando hooks..."
+  if [[ -d "${hooks_dir}" ]]; then
+    for file in "${hooks_dir}"/*.kiro.hook; do
+      [[ ! -f "${file}" ]] && continue
+      local filename
+      filename="$(basename "${file}")"
+
+      local dest_file="${user_kiro_dir}/hooks/$(add_prefix "${filename}")"
+
+      if [[ "${DRY_RUN}" == true ]]; then
+        log_info "  [DRY-RUN] Copiaria: ${filename} → $(add_prefix "${filename}")"
+        ((FILES_COPIED++)) || true
+        continue
+      fi
+
+      if [[ -f "${dest_file}" && "${FORCE}" == false ]]; then
+        log_warn "Arquivo já existe (pulando): $(add_prefix "${filename}"). Use --force para sobrescrever."
+        ((FILES_SKIPPED++)) || true
+      else
+        cp "${file}" "${dest_file}"
+        log_success "  ${filename} → $(add_prefix "${filename}")"
+        ((FILES_COPIED++)) || true
+      fi
+    done
+  fi
+
+  # Mergear MCP servers
+  local baseline_mcp="${REPO_ROOT}/baselines/global/mcp/mcp.json"
+  local user_mcp="${user_kiro_dir}/settings/mcp.json"
+  echo ""
+  log_info "Mergeando servidores MCP..."
+
+  if [[ "${DRY_RUN}" == true ]]; then
+    if [[ -f "${baseline_mcp}" ]]; then
+      if command -v jq &>/dev/null; then
+        local server_keys
+        server_keys="$(jq -r '.mcpServers | keys[]' "${baseline_mcp}" 2>/dev/null)"
+        for key in ${server_keys}; do
+          log_info "  [DRY-RUN] Mergearia servidor: ${key}"
+          ((MCP_SERVERS_MERGED++)) || true
+        done
+      else
+        log_info "  [DRY-RUN] Mergearia servidores de ${baseline_mcp}"
+        ((MCP_SERVERS_MERGED++)) || true
+      fi
+    fi
+  else
+    if [[ -f "${baseline_mcp}" ]]; then
+      # Emitir warnings para servidores que serão sobrescritos
+      if [[ -f "${user_mcp}" ]] && command -v jq &>/dev/null; then
+        local baseline_keys
+        baseline_keys="$(jq -r '.mcpServers | keys[]' "${baseline_mcp}" 2>/dev/null)"
+        for key in ${baseline_keys}; do
+          if jq -e ".mcpServers[\"${key}\"]" "${user_mcp}" &>/dev/null; then
+            log_warn "Servidor MCP '${key}' já existe — será atualizado com versão do baseline."
+          fi
+          ((MCP_SERVERS_MERGED++)) || true
+        done
+      else
+        # Contar servidores do baseline para o resumo
+        if command -v jq &>/dev/null; then
+          local count
+          count="$(jq -r '.mcpServers | keys | length' "${baseline_mcp}" 2>/dev/null)"
+          MCP_SERVERS_MERGED="${count}"
+        else
+          ((MCP_SERVERS_MERGED++)) || true
+        fi
+      fi
+
+      merge_mcp_servers "${baseline_mcp}" "${user_mcp}"
+      log_success "  Servidores MCP mergeados em ${user_mcp}"
+    else
+      log_warn "Arquivo MCP baseline não encontrado: ${baseline_mcp}"
+    fi
+  fi
+
+  # Criar mb-baseline-version
+  echo ""
+  log_info "Registrando versão do baseline..."
+  if [[ "${DRY_RUN}" == true ]]; then
+    log_info "  [DRY-RUN] Criaria: ${user_kiro_dir}/mb-baseline-version com conteúdo '${baseline_version}'"
+  else
+    printf '%s' "${baseline_version}" > "${user_kiro_dir}/mb-baseline-version"
+    log_success "  ${user_kiro_dir}/mb-baseline-version → ${baseline_version}"
+  fi
+
+  # Resumo
+  echo ""
+  echo "============================================"
+  if [[ "${DRY_RUN}" == true ]]; then
+    log_warn "Bootstrap simulado (dry-run) concluído."
+    echo ""
+    log_info "  Arquivos que seriam copiados: ${FILES_COPIED}"
+    log_info "  Servidores MCP que seriam mergeados: ${MCP_SERVERS_MERGED}"
+  else
+    log_success "Bootstrap user-scope concluído!"
+    echo ""
+    log_info "  Arquivos copiados:       ${FILES_COPIED}"
+    [[ ${FILES_SKIPPED} -gt 0 ]] && log_warn "  Arquivos pulados:        ${FILES_SKIPPED} (já existiam, use --force para sobrescrever)"
+    log_info "  Servidores MCP mergeados: ${MCP_SERVERS_MERGED}"
+  fi
+  echo "============================================"
+  echo ""
+}
+
+# -----------------------------------------------------------------------------
+# Entrypoint
+# -----------------------------------------------------------------------------
+
+main() {
+  parse_args "$@"
+
+  case "${SCOPE}" in
+    workspace) bootstrap_workspace ;;
+    user)      bootstrap_user ;;
+  esac
 }
 
 main "$@"

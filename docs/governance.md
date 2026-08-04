@@ -12,8 +12,9 @@
 4. [Ciclo de Vida dos Componentes](#ciclo-de-vida-dos-componentes)
 5. [Política de Versionamento](#política-de-versionamento)
 6. [Política de Exceções](#política-de-exceções)
-7. [Auditoria e Conformidade](#auditoria-e-conformidade)
-8. [Revisão Periódica deste Documento](#revisão-periódica-deste-documento)
+7. [Migração de Projetos Existentes (Legado → Dual-Scope)](#migração-de-projetos-existentes-legado--dual-scope)
+8. [Auditoria e Conformidade](#auditoria-e-conformidade)
+9. [Revisão Periódica deste Documento](#revisão-periódica-deste-documento)
 
 ---
 
@@ -112,12 +113,73 @@ Times que precisam desviar do baseline global devem:
 
 ---
 
+## Migração de Projetos Existentes (Legado → Dual-Scope)
+
+Projetos configurados antes da adoção do modelo dual-scope possuem o baseline copiado diretamente no workspace (`.kiro/`). Esses projetos funcionam normalmente (retrocompatibilidade garantida), mas devem ser migrados para o novo modelo quando conveniente.
+
+### Por que migrar?
+
+- **Elimina duplicação**: O baseline não precisa existir em cada projeto.
+- **Atualização centralizada**: Um único `sync.sh --scope user` atualiza todos os projetos.
+- **Menos conflitos**: Em workspaces multi-root, não há conflito entre baselines de projetos diferentes.
+- **Clareza**: Separação nítida entre "o que é organizacional" e "o que é da stack".
+
+### Como identificar um projeto legado
+
+Um projeto está no modelo legado quando seu `kiro-manifest.json` **não possui** o campo `baseline.scope`. O `doctor.sh` reporta `[WARN]` indicando que o projeto usa o modelo antigo e recomenda migração.
+
+### Processo de migração
+
+```bash
+# 1. Simular a migração (sem aplicar mudanças)
+./scripts/sync.sh --target ../meu-projeto --migrate-to-user-scope --dry-run
+
+# 2. Executar a migração
+./scripts/sync.sh --target ../meu-projeto --migrate-to-user-scope
+
+# 3. Instalar o baseline na máquina (se ainda não fez)
+./scripts/bootstrap.sh --scope user
+```
+
+**O que a migração faz:**
+
+1. Cria backup em `<projeto>/.kiro/.migration-backup/baseline/`
+2. Remove steering files do baseline do workspace (mantém os do archetype)
+3. Remove servidores MCP do baseline do `mcp.json` do workspace (mantém os do archetype)
+4. Atualiza o manifest para `baseline.scope: "user"` e `schema_version: "2.0.0"`
+
+**Segurança:**
+
+- A migração é **atômica**: se falhar em qualquer etapa, o backup é restaurado automaticamente.
+- É possível verificar o resultado antes com `--dry-run`.
+- Projetos já migrados são detectados e o comando encerra sem mudanças.
+
+### Cronograma recomendado
+
+| Fase | Ação | Prazo sugerido |
+|---|---|---|
+| 1 | Todos os devs executam `bootstrap.sh --scope user` | Imediato |
+| 2 | Novos projetos usam `bootstrap.sh --scope workspace` | A partir de agora |
+| 3 | Projetos existentes migram com `--migrate-to-user-scope` | Até próxima revisão trimestral |
+| 4 | Modelo legado deprecado | Após migração de todos |
+
+### Rollback
+
+Se necessário reverter a migração de um projeto:
+
+1. O backup está em `<projeto>/.kiro/.migration-backup/baseline/`
+2. Copie os steering files de volta para `<projeto>/.kiro/steering/`
+3. Remova o campo `baseline.scope` do manifest
+4. Revert o `schema_version` para o valor anterior
+
+---
+
 ## Auditoria e Conformidade
 
-> TODO: Definir como será feita a auditoria de conformidade dos projetos com o baseline (ex.: script doctor.sh automatizado em CI, revisões periódicas manuais).
-
 - O script `doctor.sh` pode ser executado manualmente ou em pipelines de CI para verificar conformidade.
+- Em CI, o doctor verifica apenas artefatos do workspace (o baseline user-scope não se aplica).
 - Relatórios de conformidade devem ser gerados **mensalmente** e revisados pelos mantenedores.
+- Use `--output json` para integração com ferramentas de monitoramento.
 
 ---
 

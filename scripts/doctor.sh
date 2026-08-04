@@ -2,19 +2,28 @@
 # =============================================================================
 # doctor.sh — Diagnóstico do Ambiente Kiro (MonteBravo)
 # =============================================================================
-# Verifica o estado do Kiro em um projeto e reporta inconsistências,
-# componentes ausentes ou desatualizados.
+# Verifica o estado do Kiro em um projeto e/ou no escopo do usuário,
+# reportando inconsistências, componentes ausentes ou desatualizados.
 #
 # Uso:
-#   ./scripts/doctor.sh [opções]
+#   ./scripts/doctor.sh --scope user [--output text|json] [--verbose]
+#   ./scripts/doctor.sh --scope workspace --target <caminho> [--output text|json] [--verbose]
+#   ./scripts/doctor.sh --target <caminho> [--output text|json] [--verbose]
 #
 # Opções:
-#   --target <caminho>      Caminho para o diretório do projeto a diagnosticar
-#   --output <formato>      Formato do relatório: text (padrão) | json
-#   --verbose               Exibe detalhes adicionais nos warnings (diffs, listas de arquivos)
-#   --help                  Exibe esta mensagem de ajuda
+#   --scope <user|workspace> Escopo do diagnóstico (opcional se --target informado)
+#   --target <caminho>       Caminho para o diretório do projeto a diagnosticar
+#   --output <formato>       Formato do relatório: text (padrão) | json
+#   --verbose                Exibe detalhes adicionais nos warnings (diffs, listas de arquivos)
+#   --help                   Exibe esta mensagem de ajuda
+#
+# Notas:
+#   - Sem --scope + com --target: executa ambos escopos e consolida
+#   - Em CI ($CI=true): pula verificação user-level automaticamente
 #
 # Exemplos:
+#   ./scripts/doctor.sh --scope user
+#   ./scripts/doctor.sh --scope workspace --target ../meu-projeto
 #   ./scripts/doctor.sh --target ../meu-projeto
 #   ./scripts/doctor.sh --target ../meu-projeto --verbose
 #   ./scripts/doctor.sh --target ../meu-projeto --output json
@@ -29,10 +38,14 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
+# Importar funções compartilhadas
+source "${SCRIPT_DIR}/lib/common.sh"
+
 # Contadores de diagnóstico
 CHECKS_PASSED=0
 CHECKS_WARNED=0
 CHECKS_FAILED=0
+CHECKS_INFO=0
 
 # Cores para output
 RED='\033[0;31m'
@@ -51,6 +64,7 @@ VERBOSE=false
 # -----------------------------------------------------------------------------
 
 log_info()    { [[ "${OUTPUT_FORMAT}" == "text" ]] && echo -e "${BLUE}[INFO]${NC}  $*"; return 0; }
+log_info_check() { ((CHECKS_INFO++)) || true; [[ "${OUTPUT_FORMAT}" == "text" ]] && echo -e "${BLUE}[INFO]${NC}  $*"; return 0; }
 log_pass()    { ((CHECKS_PASSED++)) || true; [[ "${OUTPUT_FORMAT}" == "text" ]] && echo -e "${GREEN}[PASS]${NC}  $*"; return 0; }
 log_warn()    { ((CHECKS_WARNED++)) || true; [[ "${OUTPUT_FORMAT}" == "text" ]] && echo -e "${YELLOW}[WARN]${NC}  $*"; return 0; }
 log_fail()    { ((CHECKS_FAILED++)) || true; [[ "${OUTPUT_FORMAT}" == "text" ]] && echo -e "${RED}[FAIL]${NC}  $*"; return 0; }
@@ -197,11 +211,13 @@ check_exception() {
 # Validação de argumentos
 # -----------------------------------------------------------------------------
 
+SCOPE=""
 TARGET_DIR=""
 
 parse_args() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
+      --scope)   SCOPE="$2"; shift 2 ;;
       --target)  TARGET_DIR="$2"; shift 2 ;;
       --output)  OUTPUT_FORMAT="$2"; shift 2 ;;
       --verbose) VERBOSE=true; shift ;;
@@ -213,15 +229,41 @@ parse_args() {
     esac
   done
 
-  if [[ -z "${TARGET_DIR}" ]]; then
+  # Validar --scope se informado
+  if [[ -n "${SCOPE}" ]]; then
+    if ! validate_scope "${SCOPE}"; then
+      log_error "Valor inválido para --scope: ${SCOPE}"
+      log_error "Valores válidos: user, workspace"
+      exit 1
+    fi
+  fi
+
+  # --scope workspace requer --target
+  if [[ "${SCOPE}" == "workspace" && -z "${TARGET_DIR}" ]]; then
     log_error "Argumento obrigatório ausente: --target"
+    log_error "--target é obrigatório para o escopo workspace."
     exit 1
   fi
 
-  TARGET_DIR="$(cd "${TARGET_DIR}" 2>/dev/null && pwd)" || {
-    log_error "Diretório destino não encontrado: ${TARGET_DIR}"
+  # Sem --scope e sem --target: erro
+  if [[ -z "${SCOPE}" && -z "${TARGET_DIR}" ]]; then
+    log_error "Argumentos insuficientes."
+    log_error "Uso:"
+    log_error "  doctor.sh --scope user                           (verifica baseline em ~/.kiro/)"
+    log_error "  doctor.sh --scope workspace --target <caminho>   (verifica archetype no projeto)"
+    log_error "  doctor.sh --target <caminho>                     (verifica ambos escopos)"
+    log_error ""
+    log_error "Valores válidos para --scope: user, workspace"
     exit 1
-  }
+  fi
+
+  # Resolver --target para caminho absoluto se informado
+  if [[ -n "${TARGET_DIR}" ]]; then
+    TARGET_DIR="$(cd "${TARGET_DIR}" 2>/dev/null && pwd)" || {
+      log_error "Diretório destino não encontrado: ${TARGET_DIR}"
+      exit 1
+    }
+  fi
 }
 
 # -----------------------------------------------------------------------------
@@ -849,21 +891,634 @@ check_general_health() {
 }
 
 # -----------------------------------------------------------------------------
+# Funções de diagnóstico — Scope User (stub para task 9)
+# -----------------------------------------------------------------------------
+
+doctor_user_scope() {
+  if [[ "${OUTPUT_FORMAT}" == "text" ]]; then
+    echo ""
+    echo "============================================"
+    echo "  mb-kiro Doctor — Scope User"
+    echo "============================================"
+    echo ""
+  fi
+
+  local user_kiro_dir
+  user_kiro_dir="$(get_user_kiro_dir)"
+
+  log_info "Verificando baseline em: ${user_kiro_dir}"
+  if [[ "${OUTPUT_FORMAT}" == "text" ]]; then echo ""; fi
+
+  # --- Verificação 1: Existência de ~/.kiro/ ---
+  if [[ ! -d "${user_kiro_dir}" ]]; then
+    log_fail "Diretório ${user_kiro_dir} não encontrado. O baseline não foi instalado."
+    add_json_result "fail" "user-scope" "Diretório ~/.kiro/ não encontrado"
+    log_info "Execute: bootstrap.sh --scope user"
+    return
+  fi
+
+  log_pass "Diretório ${user_kiro_dir} encontrado."
+  add_json_result "pass" "user-scope" "Diretório ~/.kiro/ encontrado"
+
+  # --- Verificação 2: ~/.kiro/mb-baseline-version ---
+  local version_file="${user_kiro_dir}/mb-baseline-version"
+
+  if [[ -f "${version_file}" ]]; then
+    local version_content
+    version_content="$(tr -d '[:space:]' < "${version_file}")"
+    if validate_semver "${version_content}"; then
+      log_pass "mb-baseline-version: ${version_content} (semver válido)"
+      add_json_result "pass" "user-scope" "mb-baseline-version: ${version_content}"
+    else
+      log_fail "mb-baseline-version contém valor inválido: '${version_content}' (esperado: MAJOR.MINOR.PATCH)"
+      add_json_result "fail" "user-scope" "mb-baseline-version: valor inválido (${version_content})"
+    fi
+  else
+    log_fail "mb-baseline-version ausente em ${user_kiro_dir}"
+    add_json_result "fail" "user-scope" "mb-baseline-version ausente"
+    log_info "Execute: bootstrap.sh --scope user"
+  fi
+
+  # --- Verificação 3: Steering files do baseline ---
+  if [[ "${OUTPUT_FORMAT}" == "text" ]]; then echo ""; fi
+  log_info "=== Steering Files (Baseline) ==="
+
+  local baseline_steering_dir="${REPO_ROOT}/baselines/global/steering"
+
+  if [[ -d "${baseline_steering_dir}" ]]; then
+    local steering_checked=false
+
+    while IFS= read -r -d '' src_file; do
+      local src_name
+      src_name="$(basename "${src_file}")"
+
+      # Pular README.md
+      [[ "${src_name}" == "README.md" ]] && continue
+
+      steering_checked=true
+      local expected_file="${user_kiro_dir}/steering/$(add_prefix "${src_name}")"
+
+      if [[ -f "${expected_file}" ]]; then
+        if cmp -s "${src_file}" "${expected_file}"; then
+          log_pass "steering/$(add_prefix "${src_name}"): idêntico à fonte"
+          add_json_result "pass" "user-scope" "steering/$(add_prefix "${src_name}"): presente e idêntico"
+        else
+          log_warn "steering/$(add_prefix "${src_name}"): conteúdo difere da fonte"
+          add_json_result "warn" "user-scope" "steering/$(add_prefix "${src_name}"): presente mas desatualizado"
+          if [[ "${VERBOSE}" == true ]]; then
+            log_detail "Diferenças:"
+            diff --unified=3 "${src_file}" "${expected_file}" 2>/dev/null | while IFS= read -r line; do
+              log_detail "  ${line}"
+            done
+          fi
+        fi
+      else
+        log_fail "steering/$(add_prefix "${src_name}"): ausente"
+        add_json_result "fail" "user-scope" "steering/$(add_prefix "${src_name}"): ausente"
+      fi
+    done < <(find "${baseline_steering_dir}" -maxdepth 1 -name "*.md" -type f -print0 2>/dev/null)
+
+    if [[ "${steering_checked}" == false ]]; then
+      log_info "Nenhum steering file no baseline para verificar."
+    fi
+  else
+    log_warn "Diretório de steering do baseline não encontrado: ${baseline_steering_dir}"
+    add_json_result "warn" "user-scope" "Diretório baseline/steering não encontrado"
+  fi
+
+  # --- Verificação 4: Hooks do baseline ---
+  if [[ "${OUTPUT_FORMAT}" == "text" ]]; then echo ""; fi
+  log_info "=== Hooks (Baseline) ==="
+
+  local baseline_hooks_dir="${REPO_ROOT}/baselines/global/hooks"
+
+  if [[ -d "${baseline_hooks_dir}" ]]; then
+    local hooks_checked=false
+
+    while IFS= read -r -d '' src_file; do
+      local src_name
+      src_name="$(basename "${src_file}")"
+
+      # Pular README.md
+      [[ "${src_name}" == "README.md" ]] && continue
+
+      hooks_checked=true
+      local expected_file="${user_kiro_dir}/hooks/$(add_prefix "${src_name}")"
+
+      if [[ -f "${expected_file}" ]]; then
+        if cmp -s "${src_file}" "${expected_file}"; then
+          log_pass "hooks/$(add_prefix "${src_name}"): idêntico à fonte"
+          add_json_result "pass" "user-scope" "hooks/$(add_prefix "${src_name}"): presente e idêntico"
+        else
+          log_warn "hooks/$(add_prefix "${src_name}"): conteúdo difere da fonte"
+          add_json_result "warn" "user-scope" "hooks/$(add_prefix "${src_name}"): presente mas desatualizado"
+          if [[ "${VERBOSE}" == true ]]; then
+            log_detail "Diferenças:"
+            diff --unified=3 "${src_file}" "${expected_file}" 2>/dev/null | while IFS= read -r line; do
+              log_detail "  ${line}"
+            done
+          fi
+        fi
+      else
+        log_fail "hooks/$(add_prefix "${src_name}"): ausente"
+        add_json_result "fail" "user-scope" "hooks/$(add_prefix "${src_name}"): ausente"
+      fi
+    done < <(find "${baseline_hooks_dir}" -maxdepth 1 -name "*.kiro.hook" -type f -print0 2>/dev/null)
+
+    if [[ "${hooks_checked}" == false ]]; then
+      log_info "Nenhum hook no baseline para verificar."
+    fi
+  else
+    log_warn "Diretório de hooks do baseline não encontrado: ${baseline_hooks_dir}"
+    add_json_result "warn" "user-scope" "Diretório baseline/hooks não encontrado"
+  fi
+
+  # --- Verificação 5: Servidores MCP do baseline ---
+  if [[ "${OUTPUT_FORMAT}" == "text" ]]; then echo ""; fi
+  log_info "=== MCP Servers (Baseline) ==="
+
+  local baseline_mcp="${REPO_ROOT}/baselines/global/mcp/mcp.json"
+  local user_mcp="${user_kiro_dir}/settings/mcp.json"
+
+  if [[ ! -f "${baseline_mcp}" ]]; then
+    log_warn "Arquivo MCP do baseline não encontrado: ${baseline_mcp}"
+    add_json_result "warn" "user-scope" "Arquivo MCP do baseline não encontrado"
+  elif ! command -v jq &>/dev/null; then
+    log_warn "jq não disponível — verificação de MCP limitada."
+    add_json_result "warn" "user-scope" "jq não disponível para verificação MCP"
+  elif [[ ! -f "${user_mcp}" ]]; then
+    # Reportar WARN para cada servidor ausente (arquivo inteiro ausente)
+    local server_keys
+    server_keys="$(jq -r '.mcpServers | keys[]' "${baseline_mcp}" 2>/dev/null)"
+    if [[ -n "${server_keys}" ]]; then
+      while IFS= read -r key; do
+        log_warn "MCP server '${key}': mcp.json ausente em ${user_kiro_dir}/settings/"
+        add_json_result "warn" "user-scope" "MCP server '${key}': mcp.json ausente"
+      done <<< "${server_keys}"
+    fi
+  else
+    # Verificar cada chave do baseline no user mcp.json
+    local server_keys
+    server_keys="$(jq -r '.mcpServers | keys[]' "${baseline_mcp}" 2>/dev/null)"
+
+    if [[ -n "${server_keys}" ]]; then
+      while IFS= read -r key; do
+        local user_has_key
+        user_has_key="$(jq -r --arg k "${key}" '.mcpServers[$k] // empty' "${user_mcp}" 2>/dev/null)"
+
+        if [[ -n "${user_has_key}" ]]; then
+          log_pass "MCP server '${key}': presente"
+          add_json_result "pass" "user-scope" "MCP server '${key}': presente"
+        else
+          log_warn "MCP server '${key}': ausente em ${user_kiro_dir}/settings/mcp.json"
+          add_json_result "warn" "user-scope" "MCP server '${key}': ausente"
+        fi
+      done <<< "${server_keys}"
+    else
+      log_info "Nenhum servidor MCP definido no baseline."
+    fi
+  fi
+}
+
+# -----------------------------------------------------------------------------
+# Funções de diagnóstico — Scope Workspace
+# -----------------------------------------------------------------------------
+
+doctor_workspace_scope() {
+  if [[ "${OUTPUT_FORMAT}" == "text" ]]; then
+    echo ""
+    echo "============================================"
+    echo "  mb-kiro Doctor — Scope Workspace"
+    echo "============================================"
+    echo ""
+  fi
+
+  # --- Validação: --target informado e existe ---
+  if [[ -z "${TARGET_DIR}" ]]; then
+    log_error "Argumento obrigatório ausente: --target"
+    log_error "--target é obrigatório para o escopo workspace."
+    exit 1
+  fi
+
+  if [[ ! -d "${TARGET_DIR}" ]]; then
+    log_error "Diretório destino não encontrado: ${TARGET_DIR}"
+    exit 1
+  fi
+
+  log_info "Diagnosticando workspace: ${TARGET_DIR}"
+  if [[ "${OUTPUT_FORMAT}" == "text" ]]; then echo ""; fi
+
+  # --- Verificação 1: kiro-manifest.json ---
+  local manifest_path="${TARGET_DIR}/kiro-manifest.json"
+
+  if [[ ! -f "${manifest_path}" ]]; then
+    log_fail "kiro-manifest.json não encontrado em: ${TARGET_DIR}"
+    add_json_result "fail" "workspace-scope" "kiro-manifest.json não encontrado"
+    log_info "Execute: bootstrap.sh --scope workspace --target ${TARGET_DIR} --project-type <tipo>"
+    return
+  fi
+
+  log_pass "kiro-manifest.json encontrado."
+  add_json_result "pass" "workspace-scope" "kiro-manifest.json encontrado"
+
+  # --- Verificação 2: campo baseline.scope ---
+  local baseline_scope=""
+  local archetype_name=""
+
+  if command -v jq &>/dev/null; then
+    baseline_scope="$(jq -r '.baseline.scope // empty' "${manifest_path}" 2>/dev/null)"
+    archetype_name="$(jq -r '.archetype.name // empty' "${manifest_path}" 2>/dev/null)"
+  else
+    # Fallback sem jq via grep
+    baseline_scope="$(grep -o '"scope"[[:space:]]*:[[:space:]]*"[^"]*"' "${manifest_path}" 2>/dev/null | head -1 | sed 's/.*"\([^"]*\)"/\1/')"
+    archetype_name="$(grep -o '"name"[[:space:]]*:[[:space:]]*"[^"]*"' "${manifest_path}" 2>/dev/null | head -1 | sed 's/.*"\([^"]*\)"/\1/')"
+  fi
+
+  if [[ -z "${baseline_scope}" ]]; then
+    # Modelo legado — executar verificação completa no workspace
+    log_warn "Campo baseline.scope ausente no manifest (modelo legado)."
+    add_json_result "warn" "workspace-scope" "Campo baseline.scope ausente (modelo legado)"
+    log_info_check "Recomendação: migre para o modelo dual-scope com: ./scripts/sync.sh --target ${TARGET_DIR} --migrate-to-user-scope"
+    add_json_result "info" "workspace-scope" "Recomendação: migrar para dual-scope via sync.sh --migrate-to-user-scope"
+
+    # Modelo legado: verificação completa baseline + archetype no workspace
+    _doctor_workspace_legacy_baseline "${archetype_name}"
+    _doctor_workspace_archetype "${archetype_name}"
+    return
+  fi
+
+  log_pass "baseline.scope: ${baseline_scope}"
+  add_json_result "pass" "workspace-scope" "baseline.scope: ${baseline_scope}"
+
+  # --- Verificação 3: Se baseline.scope == "user", verificar ~/.kiro/mb-baseline-version ---
+  if [[ "${baseline_scope}" == "user" ]]; then
+    if is_ci_environment; then
+      log_info_check "Verificação de ~/.kiro/mb-baseline-version omitida por ambiente CI."
+      add_json_result "info" "workspace-scope" "Verificação user-scope omitida por ambiente CI"
+    else
+      local user_kiro_dir
+      user_kiro_dir="$(get_user_kiro_dir)"
+      local version_file="${user_kiro_dir}/mb-baseline-version"
+
+      if [[ -f "${version_file}" ]]; then
+        local version_content
+        version_content="$(tr -d '[:space:]' < "${version_file}")"
+        if validate_semver "${version_content}"; then
+          log_pass "~/.kiro/mb-baseline-version: ${version_content}"
+          add_json_result "pass" "workspace-scope" "~/.kiro/mb-baseline-version: ${version_content}"
+        else
+          log_warn "~/.kiro/mb-baseline-version contém valor inválido: '${version_content}'"
+          add_json_result "warn" "workspace-scope" "~/.kiro/mb-baseline-version: valor inválido"
+          log_info "Execute: bootstrap.sh --scope user"
+        fi
+      else
+        log_warn "~/.kiro/mb-baseline-version ausente."
+        add_json_result "warn" "workspace-scope" "~/.kiro/mb-baseline-version ausente"
+        log_info "Execute: bootstrap.sh --scope user"
+      fi
+    fi
+  fi
+
+  # --- Verificação 4: Artefatos do archetype ---
+  _doctor_workspace_archetype "${archetype_name}"
+
+  # --- Verificação 5: Detecção de overrides ---
+  if [[ "${baseline_scope}" == "user" ]]; then
+    _doctor_workspace_detect_overrides
+  fi
+}
+
+# Verifica artefatos do archetype no workspace comparando com a fonte
+# $1 = archetype_name
+_doctor_workspace_archetype() {
+  local archetype_name="${1:-}"
+
+  if [[ "${OUTPUT_FORMAT}" == "text" ]]; then echo ""; fi
+  log_info "=== Archetype ==="
+
+  if [[ -z "${archetype_name}" ]]; then
+    log_warn "Não foi possível determinar o archetype (jq ausente ou manifest incompleto)."
+    add_json_result "warn" "workspace-scope" "Archetype não determinado"
+    return
+  fi
+
+  local archetype_dir="${REPO_ROOT}/archetypes/${archetype_name}"
+
+  if [[ ! -d "${archetype_dir}" ]]; then
+    log_fail "Archetype '${archetype_name}' não encontrado no repositório mb-kiro."
+    add_json_result "fail" "workspace-scope" "Archetype '${archetype_name}' não encontrado"
+    return
+  fi
+
+  log_pass "Archetype: ${archetype_name}"
+  add_json_result "pass" "workspace-scope" "Archetype: ${archetype_name}"
+
+  # Comparar artefatos por categoria
+  local check_dirs=("steering:*.md" "skills:*.md" "hooks:*.kiro.hook" "agents:*.md")
+
+  for entry in "${check_dirs[@]}"; do
+    local dir_name="${entry%%:*}"
+    local pattern="${entry##*:}"
+    local src_dir="${archetype_dir}/${dir_name}"
+    local dest_dir="${TARGET_DIR}/.kiro/${dir_name}"
+
+    if [[ ! -d "${src_dir}" ]]; then
+      continue
+    fi
+
+    # Contar arquivos fonte (exceto README.md)
+    local src_files=()
+    while IFS= read -r -d '' f; do
+      local fname
+      fname="$(basename "${f}")"
+      [[ "${fname}" == "README.md" ]] && continue
+      src_files+=("${f}")
+    done < <(find "${src_dir}" -maxdepth 1 -name "${pattern}" -type f -print0 2>/dev/null)
+
+    if [[ ${#src_files[@]} -eq 0 ]]; then
+      continue
+    fi
+
+    if [[ ! -d "${dest_dir}" ]]; then
+      # Verificar se há exceção para o diretório inteiro
+      local dir_rule="archetype.${dir_name}"
+      if check_exception "${dir_rule}" "workspace-scope" "Diretório ausente com exceção: ${dir_name}"; then
+        continue
+      fi
+      log_fail "${dir_name}: diretório .kiro/${dir_name}/ não encontrado"
+      add_json_result "fail" "workspace-scope" "${dir_name}: diretório .kiro/${dir_name}/ ausente"
+      continue
+    fi
+
+    # Verificar cada arquivo individualmente
+    for src_file in "${src_files[@]}"; do
+      local src_fname
+      src_fname="$(basename "${src_file}")"
+      local dest_file="${dest_dir}/${src_fname}"
+
+      # Rule para exceções
+      local archetype_rule="archetype.${dir_name}.${src_fname%.*}"
+
+      if [[ -f "${dest_file}" ]]; then
+        if cmp -s "${src_file}" "${dest_file}"; then
+          log_pass "${dir_name}/${src_fname}: idêntico à fonte"
+          add_json_result "pass" "workspace-scope" "${dir_name}/${src_fname}: presente e idêntico"
+        else
+          # Verificar exceção
+          if check_exception "${archetype_rule}" "workspace-scope" "Desatualizado com exceção: ${dir_name}/${src_fname}"; then
+            continue
+          fi
+          log_warn "${dir_name}/${src_fname}: conteúdo difere da fonte"
+          add_json_result "warn" "workspace-scope" "${dir_name}/${src_fname}: presente mas desatualizado"
+          if [[ "${VERBOSE}" == true ]]; then
+            log_detail "Diferenças:"
+            diff --unified=3 "${src_file}" "${dest_file}" 2>/dev/null | while IFS= read -r line; do
+              log_detail "  ${line}"
+            done
+          fi
+        fi
+      else
+        # Verificar exceção para ausente
+        if check_exception "${archetype_rule}" "workspace-scope" "Ausente com exceção: ${dir_name}/${src_fname}"; then
+          continue
+        fi
+        log_fail "${dir_name}/${src_fname}: ausente"
+        add_json_result "fail" "workspace-scope" "${dir_name}/${src_fname}: ausente"
+      fi
+    done
+  done
+}
+
+# Detecta overrides: steering/hook do workspace que corresponde a artefato do baseline
+_doctor_workspace_detect_overrides() {
+  if [[ "${OUTPUT_FORMAT}" == "text" ]]; then echo ""; fi
+  log_info "=== Detecção de Overrides ==="
+
+  local workspace_steering_dir="${TARGET_DIR}/.kiro/steering"
+  local workspace_hooks_dir="${TARGET_DIR}/.kiro/hooks"
+  local baseline_steering_dir="${REPO_ROOT}/baselines/global/steering"
+  local baseline_hooks_dir="${REPO_ROOT}/baselines/global/hooks"
+  local overrides_found=false
+
+  # Verificar steering overrides
+  if [[ -d "${workspace_steering_dir}" && -d "${baseline_steering_dir}" ]]; then
+    while IFS= read -r -d '' baseline_file; do
+      local baseline_fname
+      baseline_fname="$(basename "${baseline_file}")"
+
+      # Pular README.md
+      [[ "${baseline_fname}" == "README.md" ]] && continue
+
+      # Verificar se workspace tem arquivo com mesmo nome
+      if [[ -f "${workspace_steering_dir}/${baseline_fname}" ]]; then
+        log_info_check "Override: steering/${baseline_fname} (workspace sobrescreve baseline mb--${baseline_fname})"
+        add_json_result "info" "workspace-scope" "Override: steering/${baseline_fname} sobrescreve baseline mb--${baseline_fname}"
+        overrides_found=true
+      fi
+    done < <(find "${baseline_steering_dir}" -maxdepth 1 -name "*.md" -type f -print0 2>/dev/null)
+  fi
+
+  # Verificar hook overrides
+  if [[ -d "${workspace_hooks_dir}" && -d "${baseline_hooks_dir}" ]]; then
+    while IFS= read -r -d '' baseline_file; do
+      local baseline_fname
+      baseline_fname="$(basename "${baseline_file}")"
+
+      # Pular README.md
+      [[ "${baseline_fname}" == "README.md" ]] && continue
+
+      # Verificar se workspace tem hook com mesmo nome
+      if [[ -f "${workspace_hooks_dir}/${baseline_fname}" ]]; then
+        log_info_check "Override: hooks/${baseline_fname} (workspace sobrescreve baseline mb--${baseline_fname})"
+        add_json_result "info" "workspace-scope" "Override: hooks/${baseline_fname} sobrescreve baseline mb--${baseline_fname}"
+        overrides_found=true
+      fi
+    done < <(find "${baseline_hooks_dir}" -maxdepth 1 -name "*.kiro.hook" -type f -print0 2>/dev/null)
+  fi
+
+  if [[ "${overrides_found}" == false ]]; then
+    log_info "Nenhum override detectado."
+  fi
+}
+
+# Verificação do baseline no workspace para modelo legado (baseline + archetype juntos no workspace)
+# $1 = archetype_name
+_doctor_workspace_legacy_baseline() {
+  local archetype_name="${1:-}"
+
+  if [[ "${OUTPUT_FORMAT}" == "text" ]]; then echo ""; fi
+  log_info "=== Baseline no Workspace (Modelo Legado) ==="
+
+  local kiro_steering_dir="${TARGET_DIR}/.kiro/steering"
+  local baseline_steering_dir="${REPO_ROOT}/baselines/global/steering"
+
+  # Verificar steering files do baseline no workspace
+  if [[ -d "${baseline_steering_dir}" ]]; then
+    while IFS= read -r -d '' src_file; do
+      local src_name
+      src_name="$(basename "${src_file}")"
+
+      [[ "${src_name}" == "README.md" ]] && continue
+
+      if [[ -f "${kiro_steering_dir}/${src_name}" ]]; then
+        if cmp -s "${src_file}" "${kiro_steering_dir}/${src_name}"; then
+          log_pass "baseline/steering/${src_name}: idêntico"
+          add_json_result "pass" "workspace-scope" "baseline/steering/${src_name}: atualizado"
+        else
+          local rule_name="baseline.${src_name%.md}"
+          if check_exception "${rule_name}" "workspace-scope" "Desatualizado com exceção: baseline/${src_name}"; then
+            continue
+          fi
+          log_warn "baseline/steering/${src_name}: desatualizado"
+          add_json_result "warn" "workspace-scope" "baseline/steering/${src_name}: desatualizado"
+          if [[ "${VERBOSE}" == true ]]; then
+            log_detail "Diferenças:"
+            diff --unified=3 "${src_file}" "${kiro_steering_dir}/${src_name}" 2>/dev/null | while IFS= read -r line; do
+              log_detail "  ${line}"
+            done
+          fi
+        fi
+      else
+        local rule_name="baseline.${src_name%.md}"
+        if check_exception "${rule_name}" "workspace-scope" "Ausente com exceção: baseline/${src_name}"; then
+          continue
+        fi
+        log_fail "baseline/steering/${src_name}: ausente no workspace"
+        add_json_result "fail" "workspace-scope" "baseline/steering/${src_name}: ausente"
+      fi
+    done < <(find "${baseline_steering_dir}" -maxdepth 1 -name "*.md" -type f -print0 2>/dev/null)
+  fi
+
+  # Verificar hooks do baseline no workspace
+  local kiro_hooks_dir="${TARGET_DIR}/.kiro/hooks"
+  local baseline_hooks_dir="${REPO_ROOT}/baselines/global/hooks"
+
+  if [[ -d "${baseline_hooks_dir}" ]]; then
+    while IFS= read -r -d '' src_file; do
+      local src_name
+      src_name="$(basename "${src_file}")"
+
+      [[ "${src_name}" == "README.md" ]] && continue
+
+      if [[ -f "${kiro_hooks_dir}/${src_name}" ]]; then
+        if cmp -s "${src_file}" "${kiro_hooks_dir}/${src_name}"; then
+          log_pass "baseline/hooks/${src_name}: idêntico"
+          add_json_result "pass" "workspace-scope" "baseline/hooks/${src_name}: atualizado"
+        else
+          local rule_name="baseline.hooks.${src_name%.kiro.hook}"
+          if check_exception "${rule_name}" "workspace-scope" "Desatualizado com exceção: baseline/hooks/${src_name}"; then
+            continue
+          fi
+          log_warn "baseline/hooks/${src_name}: desatualizado"
+          add_json_result "warn" "workspace-scope" "baseline/hooks/${src_name}: desatualizado"
+        fi
+      else
+        local rule_name="baseline.hooks.${src_name%.kiro.hook}"
+        if check_exception "${rule_name}" "workspace-scope" "Ausente com exceção: baseline/hooks/${src_name}"; then
+          continue
+        fi
+        log_fail "baseline/hooks/${src_name}: ausente no workspace"
+        add_json_result "fail" "workspace-scope" "baseline/hooks/${src_name}: ausente"
+      fi
+    done < <(find "${baseline_hooks_dir}" -maxdepth 1 -name "*.kiro.hook" -type f -print0 2>/dev/null)
+  fi
+
+  # Verificar MCP do baseline no workspace (modelo legado)
+  local baseline_mcp="${REPO_ROOT}/baselines/global/mcp/mcp.json"
+  local workspace_mcp="${TARGET_DIR}/.kiro/settings/mcp.json"
+
+  if [[ -f "${baseline_mcp}" ]] && command -v jq &>/dev/null; then
+    if [[ -f "${workspace_mcp}" ]]; then
+      local server_keys
+      server_keys="$(jq -r '.mcpServers | keys[]' "${baseline_mcp}" 2>/dev/null)"
+
+      if [[ -n "${server_keys}" ]]; then
+        while IFS= read -r key; do
+          local ws_has_key
+          ws_has_key="$(jq -r --arg k "${key}" '.mcpServers[$k] // empty' "${workspace_mcp}" 2>/dev/null)"
+
+          if [[ -n "${ws_has_key}" ]]; then
+            log_pass "baseline/mcp server '${key}': presente"
+            add_json_result "pass" "workspace-scope" "baseline/mcp server '${key}': presente"
+          else
+            log_warn "baseline/mcp server '${key}': ausente no workspace"
+            add_json_result "warn" "workspace-scope" "baseline/mcp server '${key}': ausente"
+          fi
+        done <<< "${server_keys}"
+      fi
+    else
+      log_warn "mcp.json ausente no workspace (.kiro/settings/mcp.json)"
+      add_json_result "warn" "workspace-scope" "mcp.json ausente no workspace"
+    fi
+  fi
+}
+
+# -----------------------------------------------------------------------------
+# Funções de diagnóstico — Legado (fluxo original para projetos sem baseline.scope)
+# -----------------------------------------------------------------------------
+
+# Verifica se o manifest do projeto é legado (sem campo baseline.scope)
+# Retorna 0 se legado, 1 se não
+is_legacy_manifest() {
+  local manifest_path="${1:-${TARGET_DIR}/kiro-manifest.json}"
+
+  if [[ ! -f "${manifest_path}" ]]; then
+    return 1
+  fi
+
+  if command -v jq &>/dev/null; then
+    local scope_value
+    scope_value="$(jq -r '.baseline.scope // empty' "${manifest_path}" 2>/dev/null)"
+    [[ -z "${scope_value}" ]]
+  else
+    # Fallback sem jq: verificar presença do campo "scope" dentro de baseline
+    ! grep -q '"scope"' "${manifest_path}" 2>/dev/null
+  fi
+}
+
+doctor_legacy() {
+  # Fluxo original: verifica baseline + archetype no workspace
+  if [[ "${OUTPUT_FORMAT}" == "text" ]]; then
+    echo ""
+    echo "============================================"
+    echo "  mb-kiro Doctor — MonteBravo (Legado)"
+    echo "============================================"
+    log_info "Diagnosticando: ${TARGET_DIR}"
+    echo ""
+  fi
+
+  log_info_check "Projeto no modelo legado (sem baseline.scope no manifest). Recomendação: migre para o modelo dual-scope com:"
+  add_json_result "info" "legacy" "Projeto no modelo legado. Recomendação: migrar para dual-scope"
+  log_info "  ./scripts/sync.sh --target ${TARGET_DIR} --migrate-to-user-scope"
+
+  check_manifest
+  check_baseline
+  check_archetype
+  check_powers
+  check_general_health
+}
+
+# -----------------------------------------------------------------------------
 # Relatório
 # -----------------------------------------------------------------------------
 
 print_summary() {
-  local total=$((CHECKS_PASSED + CHECKS_WARNED + CHECKS_FAILED))
+  local total=$((CHECKS_PASSED + CHECKS_WARNED + CHECKS_FAILED + CHECKS_INFO))
+  local scope_label="${SCOPE:-both}"
 
   echo ""
   echo "============================================"
   echo "  Resumo do Diagnóstico"
   echo "  Executado em: ${TIMESTAMP}"
-  echo "  Projeto: ${TARGET_DIR}"
+  if [[ -n "${TARGET_DIR}" ]]; then
+    echo "  Projeto: ${TARGET_DIR}"
+  fi
+  echo "  Escopo: ${scope_label}"
   echo "============================================"
   echo -e "  ${GREEN}Passou:${NC}    ${CHECKS_PASSED}/${total}"
   echo -e "  ${YELLOW}Atenção:${NC}   ${CHECKS_WARNED}/${total}"
   echo -e "  ${RED}Falhou:${NC}    ${CHECKS_FAILED}/${total}"
+  echo -e "  ${BLUE}Info:${NC}      ${CHECKS_INFO}/${total}"
   echo "============================================"
 
   if [[ ${CHECKS_FAILED} -gt 0 ]]; then
@@ -888,14 +1543,21 @@ print_summary() {
 }
 
 print_json_report() {
+  local scope_label="${SCOPE:-both}"
+  local target_label="${TARGET_DIR:-~/.kiro}"
+
   if command -v jq &>/dev/null; then
-    echo "${JSON_RESULTS}" | jq '{
-      timestamp: "'"${TIMESTAMP}"'",
-      target: "'"${TARGET_DIR}"'",
+    echo "${JSON_RESULTS}" | jq --arg ts "${TIMESTAMP}" --arg tgt "${target_label}" --arg sc "${scope_label}" \
+      --argjson passed "${CHECKS_PASSED}" --argjson warned "${CHECKS_WARNED}" \
+      --argjson failed "${CHECKS_FAILED}" --argjson info "${CHECKS_INFO}" '{
+      timestamp: $ts,
+      target: $tgt,
+      scope: $sc,
       summary: {
-        passed: '"${CHECKS_PASSED}"',
-        warned: '"${CHECKS_WARNED}"',
-        failed: '"${CHECKS_FAILED}"'
+        passed: $passed,
+        warned: $warned,
+        failed: $failed,
+        info: $info
       },
       results: .
     }'
@@ -903,6 +1565,12 @@ print_json_report() {
     log_error "jq necessário para output JSON."
     exit 1
   fi
+
+  # Exit code 1 se há falhas, 0 caso contrário
+  if [[ ${CHECKS_FAILED} -gt 0 ]]; then
+    exit 1
+  fi
+  exit 0
 }
 
 # -----------------------------------------------------------------------------
@@ -912,19 +1580,61 @@ print_json_report() {
 main() {
   parse_args "$@"
 
+  # Caso 1: --scope informado — usar novo modelo
+  if [[ -n "${SCOPE}" ]]; then
+    case "${SCOPE}" in
+      user)
+        doctor_user_scope
+        ;;
+      workspace)
+        doctor_workspace_scope
+        ;;
+    esac
+
+    if [[ "${OUTPUT_FORMAT}" == "json" ]]; then
+      print_json_report
+    else
+      print_summary
+    fi
+    return
+  fi
+
+  # Caso 2: --scope NÃO informado + --target informado
+  # Verificar se é modelo legado ou executar ambos escopos
+  local manifest_path="${TARGET_DIR}/kiro-manifest.json"
+
+  if [[ -f "${manifest_path}" ]] && is_legacy_manifest "${manifest_path}"; then
+    # Modelo legado: fluxo original (baseline + archetype no workspace)
+    doctor_legacy
+
+    if [[ "${OUTPUT_FORMAT}" == "json" ]]; then
+      print_json_report
+    else
+      print_summary
+    fi
+    return
+  fi
+
+  # Modelo novo ou manifest ausente: executar ambos escopos e consolidar
   if [[ "${OUTPUT_FORMAT}" == "text" ]]; then
     echo ""
     echo "============================================"
     echo "  mb-kiro Doctor — MonteBravo"
     echo "============================================"
-    log_info "Diagnosticando: ${TARGET_DIR}"
+    log_info "Diagnosticando ambos escopos (user + workspace)"
+    echo ""
   fi
 
-  check_manifest
-  check_baseline
-  check_archetype
-  check_powers
-  check_general_health
+  # Executar escopo user (pula em CI)
+  if is_ci_environment; then
+    log_info_check "Verificação user-scope omitida por ambiente CI."
+    add_json_result "info" "user-scope" "Verificação user-scope omitida por ambiente CI"
+  else
+    doctor_user_scope
+  fi
+
+  # Executar escopo workspace
+  doctor_workspace_scope
 
   if [[ "${OUTPUT_FORMAT}" == "json" ]]; then
     print_json_report

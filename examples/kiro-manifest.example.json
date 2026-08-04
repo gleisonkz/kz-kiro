@@ -1,60 +1,42 @@
 {
-  "_comment": "Exemplo de manifesto Kiro por projeto. Copie este arquivo para a raiz do seu projeto como kiro-manifest.json e ajuste os valores.",
-  "schema_version": "0.1.0",
+  "_comment": "Exemplo de manifesto Kiro v2 (modelo dual-scope). Copie este arquivo para a raiz do seu projeto como kiro-manifest.json e ajuste os valores.",
+  "_generated_by": "bootstrap.sh --scope workspace",
+  "_generated_at": "2026-08-03T12:00:00Z",
+  "schema_version": "2.0.0",
 
-  "_section_metadata": "Metadados do projeto",
   "project": {
     "name": "meu-projeto-backend",
-    "description": "API backend do sistema de gestão de pedidos",
-    "team": "time-plataforma",
-    "repository": "MonteBravo/meu-projeto-backend",
-    "created_at": "2026-04-01T00:00:00Z"
+    "repository": "MonteBravo/meu-projeto-backend"
   },
 
-  "_section_baseline": "Versão do baseline global instalada neste projeto",
   "baseline": {
-    "source": "MonteBravo/mb-kiro",
-    "version": "0.1.0",
-    "installed_at": "2026-04-01T10:00:00Z",
-    "last_synced_at": "2026-04-01T10:00:00Z"
+    "scope": "user",
+    "source": "github.com/montebravo/mb-kiro"
   },
 
-  "_section_archetype": "Archetype aplicado neste projeto",
   "archetype": {
-    "name": "backend-nest",
-    "version": "0.1.0",
-    "installed_at": "2026-04-01T10:00:00Z"
+    "name": "backend-csharp",
+    "version": "1.0.0",
+    "installed_at": "2026-08-03T12:00:00Z",
+    "last_synced_at": "2026-08-03T12:00:00Z"
   },
 
-  "_section_powers": "Lista de powers instalados neste projeto",
   "powers": [
     {
       "name": "mb-kiro-manager",
-      "version": "0.1.0",
-      "installed_at": "2026-04-01T10:00:00Z"
+      "version": "1.0.0",
+      "source_path": "powers/mb-kiro-manager",
+      "installation_method": "native",
+      "installed_at": "2026-08-03T12:00:00Z"
     },
     {
-      "name": "mb-backend-nest",
-      "version": "0.1.0",
-      "installed_at": "2026-04-01T10:00:00Z"
+      "name": "mb-backend-csharp",
+      "version": "1.0.0",
+      "source_path": "powers/mb-backend-csharp",
+      "installation_method": "native",
+      "installed_at": "2026-08-03T12:00:00Z"
     }
   ],
 
-  "_section_exceptions": "Exceções aprovadas ao baseline global (requerem justificativa e aprovação)",
-  "exceptions": [
-    {
-      "_comment": "Exemplo de exceção. Remova se não houver exceções.",
-      "component": "baseline.security-baseline",
-      "rule": "mutual-tls-internal",
-      "justification": "Serviço interno em rede privada sem exposição externa. mTLS não aplicável neste contexto.",
-      "approved_by": "TODO: Nome do aprovador",
-      "approved_at": "TODO: Data de aprovação",
-      "review_date": "TODO: Data da próxima revisão"
-    }
-  ],
-
-  "_section_overrides": "Customizações locais que divergem do archetype padrão",
-  "overrides": {
-    "_comment": "TODO: Documentar aqui qualquer customização intencional ao archetype ou baseline."
-  }
+  "exceptions": []
 }
