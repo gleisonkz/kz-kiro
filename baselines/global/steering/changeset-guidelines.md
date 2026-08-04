@@ -1,3 +1,8 @@
+---
+inclusion: fileMatch
+fileMatchPattern: "**/.changeset/**/*.md"
+---
+
 # Diretrizes para Changesets — MonteBravo
 
 > **Steering File | Baseline Global | Versão: 0.2.0**
