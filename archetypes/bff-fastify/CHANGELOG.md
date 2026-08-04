@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.0 (2026-08-04)
+
+### Funcionalidades
+
+- Adicionar dimensão de review de changeset no config de agents
+
 ## 0.3.0 (2026-07-08)
 
 ### Funcionalidades
