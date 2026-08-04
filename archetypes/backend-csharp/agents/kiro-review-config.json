@@ -27,6 +27,13 @@
       "name": "⚡ Performance",
       "summary": "Expandir revisão de performance",
       "prompt": "This is a performance review for a C#/.NET backend project. Focus on async/await misuse, unnecessary allocations, EF Core query efficiency, N+1 problems, caching opportunities, and connection pooling."
+    },
+    {
+      "id": "changeset",
+      "agent": "cli-changeset-reviewer",
+      "name": "📦 Changeset",
+      "summary": "Expandir revisão de changeset",
+      "prompt": "This is a changeset review for a C#/.NET backend monorepo PR. Focus on: changeset presence, semantic bump correctness, package coverage in frontmatter, description quality (Brazilian Portuguese, present tense, impact-focused, no commit prefixes, no technical names as subject), and ticket references."
     }
   ]
 }
