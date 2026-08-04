@@ -68,6 +68,25 @@ mb-kiro/
 
 ---
 
+## Modelo Dual-Scope
+
+O Kiro na MonteBravo opera com separação clara de escopos:
+
+| Escopo | Localização | Conteúdo | Setup |
+|---|---|---|---|
+| **User** | `~/.kiro/` | Baseline organizacional (steering `mb--*`, hooks `mb--*`, MCP) | Uma vez por máquina |
+| **Workspace** | `<projeto>/.kiro/` | Archetype da stack (steering, skills, hooks, agents, MCP) | Uma vez por projeto |
+
+O Kiro aplica **precedência nativa**: artefatos do workspace sobrescrevem os do user-level. O baseline serve como "piso" organizacional e o archetype pode especializar qualquer diretriz.
+
+**Vantagens:**
+- Elimina duplicação do baseline em múltiplos projetos
+- Um único `sync --scope user` atualiza todos os projetos
+- Sem conflitos em workspaces multi-root
+- Compatibilidade total com projetos no modelo legado
+
+---
+
 ## Baseline Global vs. Archetypes vs. Powers
 
 | Conceito | O que é | Quando usar |
@@ -80,12 +99,20 @@ mb-kiro/
 
 ## Scripts: Bootstrap, Sync e Doctor
 
+Os scripts operam no modelo **dual-scope**: o baseline organizacional fica na máquina (`~/.kiro/`) e o archetype da stack fica no projeto (`.kiro/`).
+
 | Script | Finalidade |
 |---|---|
-| `scripts/bootstrap.sh` | Configura um projeto novo com o archetype, baseline e registra powers no manifest |
-| `scripts/sync.sh` | Atualiza um projeto existente com a versão mais recente do baseline/archetype/powers |
-| `scripts/sync.sh --migrate-powers` | Migra powers legados (steering copiado) para instalação nativa do Kiro |
-| `scripts/doctor.sh` | Diagnostica o estado atual do Kiro em um projeto e aponta inconsistências |
+| `scripts/bootstrap.sh --scope user` | Instala o baseline organizacional em `~/.kiro/` (uma vez por máquina) |
+| `scripts/bootstrap.sh --scope workspace` | Configura um projeto com o archetype da stack em `.kiro/` |
+| `scripts/sync.sh --scope user` | Atualiza o baseline em `~/.kiro/` com a versão mais recente |
+| `scripts/sync.sh --scope workspace` | Atualiza os artefatos do archetype no projeto |
+| `scripts/sync.sh --migrate-to-user-scope` | Migra projetos do modelo antigo para o dual-scope |
+| `scripts/doctor.sh --scope user` | Diagnostica o baseline na máquina |
+| `scripts/doctor.sh --scope workspace` | Diagnostica o archetype no projeto |
+| `scripts/doctor.sh --target <caminho>` | Diagnostica ambos os escopos de uma vez |
+
+> Para detalhes sobre migração de projetos existentes, veja `docs/governance.md`.
 
 ---
 
@@ -114,34 +141,40 @@ A estrutura de testes está organizada em:
 - [Kiro IDE](https://kiro.dev) instalado
 - `jq` instalado (`brew install jq` no macOS)
 
+### Setup inicial da máquina (uma vez)
+
+```bash
+# 1. Clone este repositório
+git clone git@github.com:MonteBravo/mb-kiro.git ~/projects/mb-kiro
+cd ~/projects/mb-kiro
+
+# 2. Instale o baseline organizacional na máquina
+./scripts/bootstrap.sh --scope user
+```
+
+Isso configura `~/.kiro/` com as diretrizes organizacionais. Todos os projetos herdam automaticamente.
+
 ### Time novo iniciando um projeto
 
-1. Clone este repositório localmente (se ainda não fez):
-   ```bash
-   git clone git@github.com:MonteBravo/mb-kiro.git ~/projects/mb-kiro
-   ```
+```bash
+cd ~/projects/mb-kiro
 
-2. Execute o bootstrap informando o tipo de projeto:
-   ```bash
-   ./scripts/bootstrap.sh --project-type frontend-react --target ../meu-projeto
-   ```
+# Execute o bootstrap informando o tipo de projeto
+./scripts/bootstrap.sh --scope workspace --project-type backend-csharp --target ../meu-projeto
+```
 
-3. O script aplica o baseline + archetype e **registra os powers no manifest** (sem copiar arquivos).
+O script aplica o archetype e **registra os powers no manifest** (sem copiar arquivos).
 
-4. **Instale os powers nativamente no Kiro IDE:**
-   - Abra o projeto no Kiro
-   - Abra o painel de Powers (ícone na barra lateral)
-   - Clique em **"Import power from a folder"**
-   - Aponte para o caminho exibido no terminal, ex:
-     ```
-     ~/projects/mb-kiro/powers/mb-frontend-react/
-     ```
-   - Repita para cada power listado no output do bootstrap
+**Instale os powers nativamente no Kiro IDE:**
+- Abra o projeto no Kiro
+- Abra o painel de Powers (ícone na barra lateral)
+- Clique em **"Import power from a folder"**
+- Aponte para o caminho exibido no terminal
 
-5. Valide a configuração:
-   ```bash
-   ./scripts/doctor.sh --target ../meu-projeto
-   ```
+**Valide a configuração:**
+```bash
+./scripts/doctor.sh --target ../meu-projeto
+```
 
 ### Instalando e atualizando powers
 
@@ -163,61 +196,52 @@ Powers são instalados nativamente via Kiro IDE — os scripts **não copiam** s
 2. No Kiro IDE, abra o painel de Powers e clique em **"Check for updates"**
 3. O Kiro detectará e aplicará as mudanças do power
 
-### Migrando projetos existentes (legado → nativo)
+### Migrando projetos existentes (legado → dual-scope)
 
-Projetos que usavam o modelo antigo (steering files copiados para `.kiro/steering/powers/`) podem migrar para a instalação nativa:
-
-```bash
-./scripts/sync.sh --target ../meu-projeto --migrate-powers
-```
-
-O que a migração faz para cada power:
-1. Cria backup em `.kiro/.migration-backup/<power>/`
-2. Remove os steering files legados de `.kiro/steering/powers/<power>/`
-3. Remove os MCP servers do power do `.kiro/settings/mcp.json` do projeto
-4. Atualiza o manifest com `installation_method: "native"`
-
-Após a migração, instale os powers via "Import power from a folder" no Kiro IDE (instruções exibidas no terminal).
-
-Em caso de falha, o backup é restaurado automaticamente. É possível simular antes com `--dry-run`:
+Projetos no modelo antigo (baseline copiado no workspace) podem migrar para o novo modelo:
 
 ```bash
-./scripts/sync.sh --target ../meu-projeto --migrate-powers --dry-run
+# Simular antes de aplicar
+./scripts/sync.sh --target ../meu-projeto --migrate-to-user-scope --dry-run
+
+# Executar a migração
+./scripts/sync.sh --target ../meu-projeto --migrate-to-user-scope
+
+# Instalar o baseline na máquina (se ainda não fez)
+./scripts/bootstrap.sh --scope user
 ```
+
+A migração remove artefatos do baseline do workspace, atualiza o manifest para `baseline.scope: "user"` e é atômica (rollback automático em caso de falha). Veja `docs/governance.md` para detalhes.
 
 ### Time existente sincronizando padrões
 
 ```bash
-./scripts/sync.sh --target ../meu-projeto
+# Atualizar baseline da máquina (afeta todos os projetos)
+./scripts/sync.sh --scope user
+
+# Atualizar archetype de um projeto específico
+./scripts/sync.sh --scope workspace --target ../meu-projeto
 ```
 
-O sync opera em **dual-mode** para powers:
-
-| Situação | Comportamento |
-|---|---|
-| Power com `installation_method: "native"` | Compara versão e avisa se há atualização disponível |
-| Power com `installation_method: "legacy"` | Executa sync legado + avisa para migrar |
-| Power movido para `_drafts/` | Remove referência do manifest automaticamente |
-
-### Diagnóstico de um projeto
+### Diagnóstico
 
 ```bash
+# Verificar tudo (user + workspace)
 ./scripts/doctor.sh --target ../meu-projeto
+
+# Verificar apenas o baseline da máquina
+./scripts/doctor.sh --scope user
+
+# Verificar apenas o archetype do projeto
+./scripts/doctor.sh --scope workspace --target ../meu-projeto
 ```
 
-O doctor verifica o estado de conformidade do Kiro no projeto, incluindo:
+O doctor verifica conformidade em ambos os escopos:
 
-- **Manifest**: existência e validade do `kiro-manifest.json`
-- **Baseline**: steering files presentes e atualizados
-- **Archetype**: hooks, skills e steerings do archetype aplicados
-- **Powers**: validação de cada power declarado no manifest:
-  - Existência do power no repositório mb-kiro (não está em `_drafts/`)
-  - POWER.md com frontmatter válido e keywords (obrigatórias para ativação dinâmica)
-  - Versão atualizada (compara manifest vs `VERSION` file)
-  - Detecção de instalação legada residual (steering em `.kiro/steering/powers/`)
-  - Detecção de instalação duplicada (nativo + legado simultâneo)
+- **Scope user**: baseline instalado e atualizado em `~/.kiro/`
+- **Scope workspace**: archetype, manifest, powers e servidores MCP do projeto
 
-Para cada problema detectado, o doctor exibe instruções de resolução e links para o wiki Confluence de troubleshooting.
+Para cada problema detectado, o doctor exibe instruções de resolução.
 
 Opções adicionais:
 ```bash

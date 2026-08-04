@@ -111,6 +111,9 @@ jobs:
     needs: [prepare, review]
     if: always() && needs.prepare.outputs.has_changes == 'true'
     runs-on: ubuntu-latest
+    outputs:
+      has_blockers: ${{ steps.gate.outputs.has_blockers }}
+      blocker_summary: ${{ steps.gate.outputs.blocker_summary }}
     env:
       PR_NUMBER: ${{ github.event.pull_request.number }}
     steps:
@@ -239,3 +242,76 @@ jobs:
           }
 
           post_comment
+
+      - name: Check for blocking findings
+        id: gate
+        run: |
+          # Padrões que indicam severidade bloqueante no output dos agentes.
+          # Os agentes usam headers markdown com essas palavras para categorizar findings.
+          BLOCKER_PATTERNS=(
+            "Bloqueante"
+            "Crítico"
+            "bloqueante"
+            "crítico"
+            "## 1\. \*\*Bloqueante"
+            "## 1\. \*\*Crítico"
+            "\*\*Bloqueante\*\*"
+            "\*\*Crítico\*\*"
+          )
+
+          HAS_BLOCKERS=false
+          BLOCKER_AGENTS=""
+
+          CONFIG_FILE=".kiro/agents/kiro-review-config.json"
+
+          for row in $(jq -c '.agents[]' "$CONFIG_FILE"); do
+            local_id=$(echo "$row" | jq -r '.id')
+            local_name=$(echo "$row" | jq -r '.name')
+            REVIEW_FILE="/tmp/reviews/review-${local_id}.txt"
+
+            if [ ! -f "$REVIEW_FILE" ]; then
+              continue
+            fi
+
+            # Limpar ANSI codes para busca confiável
+            CLEAN_CONTENT=$(perl -pe 's/\e\[[0-9;]*[mGKHJF]//g; s/\e\][^\a]*\a//g; s/\e\[[\?]?[0-9;]*[a-zA-Z]//g; s/\x1b[^[]*//g; s/\r//g' "$REVIEW_FILE")
+
+            for pattern in "${BLOCKER_PATTERNS[@]}"; do
+              if echo "$CLEAN_CONTENT" | grep -qiE "$pattern"; then
+                # Verificar se não é um falso positivo (ex: "Nenhum item bloqueante encontrado")
+                if echo "$CLEAN_CONTENT" | grep -qiE "(nenhum|sem|zero|não há).*(bloqueante|crítico)"; then
+                  continue
+                fi
+                HAS_BLOCKERS=true
+                if [[ "$BLOCKER_AGENTS" != *"$local_name"* ]]; then
+                  BLOCKER_AGENTS="${BLOCKER_AGENTS}${BLOCKER_AGENTS:+, }${local_name}"
+                fi
+                break
+              fi
+            done
+          done
+
+          echo "has_blockers=${HAS_BLOCKERS}" >> "$GITHUB_OUTPUT"
+          echo "blocker_summary=${BLOCKER_AGENTS}" >> "$GITHUB_OUTPUT"
+
+          if [ "$HAS_BLOCKERS" = true ]; then
+            echo "::warning::Findings bloqueantes detectados em: ${BLOCKER_AGENTS}"
+          else
+            echo "✅ Nenhum finding bloqueante detectado."
+          fi
+
+  # --- Quality Gate: falha o workflow se houver findings bloqueantes ---
+  quality-gate:
+    name: "🚦 Quality Gate"
+    needs: [post-review]
+    if: always() && needs.post-review.outputs.has_blockers == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Block PR due to critical findings
+        run: |
+          echo "::error::❌ PR bloqueada por findings de severidade Bloqueante/Crítico."
+          echo ""
+          echo "Agentes com findings bloqueantes: ${{ needs.post-review.outputs.blocker_summary }}"
+          echo ""
+          echo "Resolva os itens marcados como 'Bloqueante' ou 'Crítico' no comentário do Kiro Code Review e faça push novamente."
+          exit 1
