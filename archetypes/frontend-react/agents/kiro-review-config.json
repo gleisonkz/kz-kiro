@@ -27,6 +27,13 @@
       "name": "⚡ Performance",
       "summary": "Expandir revisão de performance",
       "prompt": "This is a performance review for a frontend React pull request. Focus on unnecessary re-renders, missing memoization, bundle size impact, lazy loading opportunities, data fetching patterns and rendering optimizations."
+    },
+    {
+      "id": "changeset",
+      "agent": "cli-changeset-reviewer",
+      "name": "📦 Changeset",
+      "summary": "Expandir revisão de changeset",
+      "prompt": "This is a changeset review for a frontend React monorepo PR. Focus on: changeset presence, semantic bump correctness, package coverage in frontmatter, description quality (Brazilian Portuguese, present tense, impact-focused, no commit prefixes, no technical names as subject), and ticket references."
     }
   ]
 }
