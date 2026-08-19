@@ -45,6 +45,21 @@ Stack: .NET 8, C# 12, ASP.NET Core Minimal APIs, Entity Framework Core, PostgreS
 - Sem exposição de dados sensíveis em logs, mensagens de erro ou respostas de API.
 - Correlation ID (`X-Correlation-Id`) sem dados pessoais.
 
+### Gestão de Secrets (Política Corporativa)
+
+Validação específica dos padrões corporativos de consumo de secrets via AWS Secrets Manager.
+
+| Regra | Severidade | O que validar |
+|---|---|---|
+| SecretsManagerCache singleton | **Critical** | Código que registra/injeta `SecretsManagerCache`, `ISecretsManagerCache` ou classes do AWS SDK deve garantir registro como **Singleton** no container de DI. Instanciação direta via `new AmazonSecretsManagerClient()` é proibida. |
+| Resolução por friendly name | **High** | Secrets devem ser resolvidos por **friendly name** (ex: `meu-servico/database-credentials`), nunca por ARN completo (`arn:aws:secretsmanager:...`). Flaggar qualquer string literal com prefixo `arn:aws:secretsmanager:`. |
+| RdsAuthInterceptor em DbContext | **High** | Todo `DbContext` que conecta a banco de dados deve utilizar o padrão `RdsAuthInterceptor` para rotação de credenciais. Flaggar DbContext com connection strings estáticas contendo senhas embutidas. |
+| Connection strings hardcoded | **Critical** | Flaggar qualquer string literal que contenha patterns de connection string (`Server=`, `Host=`, `Data Source=`, `Password=`, `User Id=`), API keys, tokens ou credenciais hardcoded no código-fonte. |
+| Secret exposure em logs/responses/exceptions | **Critical** | Flaggar qualquer ocorrência de valores de secrets sendo escritos em chamadas `ILogger`, incluídos em objetos de resposta de API, ou concatenados em mensagens de exception. Apenas metadata não-sensível (friendly name, timestamp, status) é permitida. |
+| Environment.GetEnvironmentVariable para secrets | **High** | Flaggar uso de `Environment.GetEnvironmentVariable` ou binding de `IConfiguration` a variáveis de ambiente para valores classificados como secrets (senhas de banco, API keys, tokens, certificados, connection strings com credenciais). Recomendar migração para AWS Secrets Manager via `SecretsManagerCache`. |
+
+> **Referência:** `steering/secure-development.md` § Gestão de Secrets
+
 ### Validação de Input (OWASP A03:2021)
 - FluentValidation aplicado em todos os Commands e Queries.
 - Validação de tamanho máximo de strings (prevenir DoS).
