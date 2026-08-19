@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.0 (2026-08-19)
+
+### Funcionalidades
+
+- Reescrever steering de governança de dados v2.0 com padrão ISO/IEC 11179
+- Adicionar steering de desenvolvimento seguro com padrões de secrets, validação e headers
+- Adicionar seção de gestão de secrets no agent security-reviewer
+- Adicionar hook de validação de uso de secrets em tempo real
+- Adicionar skill de geração de infraestrutura de AWS Secrets Manager
+
 ## 0.6.0 (2026-08-04)
 
 ### Funcionalidades
