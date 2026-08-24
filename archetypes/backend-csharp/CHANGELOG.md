@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.0 (2026-08-24)
+
+### Funcionalidades
+
+- Adicionar agente revisor de consistência
+- Adicionar workflow de code review com agentes em paralelo
+
 ## 0.7.0 (2026-08-19)
 
 ### Funcionalidades
