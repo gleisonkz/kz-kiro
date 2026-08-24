@@ -192,11 +192,12 @@ copy_workflows() {
 }
 
 # -----------------------------------------------------------------------------
-# copy_agents — Copia cli-*.json → .kiro/agents/ (nunca .md)
+# copy_agents — Copia cli-*.json → .kiro/agents/ e review-config → .kiro/settings/
 # -----------------------------------------------------------------------------
 copy_agents() {
   local src_dir="${ARCHETYPES_DIR}/${ARCHETYPE}/agents"
   local dest_dir="${TARGET_DIR}/.kiro/agents"
+  local settings_dir="${TARGET_DIR}/.kiro/settings"
 
   log_info "Copiando agentes CLI para ${dest_dir}..."
 
@@ -205,14 +206,50 @@ copy_agents() {
     return
   fi
 
-  # Buscar cli-*.json + kiro-review-config.json (nunca copiar .md)
+  # Buscar cli-*.json (agentes) separadamente de kiro-review-config.json (config de review)
   local json_files=()
   while IFS= read -r -d '' file; do
     json_files+=("${file}")
-  done < <(find "${src_dir}" -maxdepth 1 -type f \( -name "cli-*.json" -o -name "kiro-review-config.json" \) -print0 2>/dev/null | sort -z)
+  done < <(find "${src_dir}" -maxdepth 1 -type f -name "cli-*.json" -print0 2>/dev/null | sort -z)
+
+  # Copiar kiro-review-config.json para .kiro/settings/review-config.json
+  local review_config="${src_dir}/kiro-review-config.json"
+  if [[ -f "${review_config}" ]]; then
+    mkdir -p "${settings_dir}"
+    local dest_review="${settings_dir}/review-config.json"
+    if [[ "${DRY_RUN}" == true ]]; then
+      if [[ -f "${dest_review}" ]]; then
+        if ! diff -q "${review_config}" "${dest_review}" > /dev/null 2>&1; then
+          log_info "[DRY-RUN] Atualizaria review-config: review-config.json"
+        else
+          log_warn "[DRY-RUN] Pularia review-config (conteúdo idêntico)"
+        fi
+      else
+        log_info "[DRY-RUN] Copiaria: kiro-review-config.json → ${settings_dir}/review-config.json"
+      fi
+    else
+      if [[ -f "${dest_review}" ]]; then
+        if ! diff -q "${review_config}" "${dest_review}" > /dev/null 2>&1; then
+          cp "${review_config}" "${dest_review}"
+          log_success "Review config atualizado: review-config.json"
+          ((ACTIONS_PERFORMED++)) || true
+        fi
+      else
+        cp "${review_config}" "${dest_review}"
+        log_success "Review config copiado: review-config.json"
+        ((FILES_COPIED++)) || true
+        ((ACTIONS_PERFORMED++)) || true
+      fi
+    fi
+    # Remover versão antiga em .kiro/agents/ se existir (migração)
+    if [[ -f "${dest_dir}/kiro-review-config.json" ]]; then
+      rm -f "${dest_dir}/kiro-review-config.json"
+      log_info "Removido kiro-review-config.json de .kiro/agents/ (migrado para .kiro/settings/)"
+    fi
+  fi
 
   if [[ ${#json_files[@]} -eq 0 ]]; then
-    log_warn "Nenhum arquivo cli-*.json ou kiro-review-config.json encontrado em ${src_dir}"
+    log_warn "Nenhum arquivo cli-*.json encontrado em ${src_dir}"
     return
   fi
 

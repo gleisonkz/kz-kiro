@@ -64,3 +64,6 @@ scripts/*.lock
 *.p12
 *.pfx
 secrets/
+
+docs/kiro-workshop/
+tests/
