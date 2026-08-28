@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Lint After Agent",
+  "description": "Executa lint após o agente parar, apenas se houve escrita em arquivos .ts nesta sessão.",
+  "version": "2",
+  "when": {
+    "type": "agentStop"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Verifique se nesta sessão houve criação ou edição de arquivos `.ts` dentro de `src/`. Se NÃO houve, não faça nada e não comente.\n\nSe HOUVE, execute o comando `npm run lint` e reporte apenas se houver erros."
+  }
+}

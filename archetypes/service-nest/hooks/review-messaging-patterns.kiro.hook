@@ -1,0 +1,14 @@
+{
+  "enabled": true,
+  "name": "Revisar Padrões de Messaging",
+  "version": "1",
+  "description": "Revisa controllers e services criados ou editados para garantir conformidade com padrões de messaging RabbitMQ: naming de patterns, uso correto de @MessagePattern/@EventPattern, propagação de contexto e DTOs Zod.",
+  "when": {
+    "type": "preToolUse",
+    "toolTypes": "write"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Antes de escrever, verifique se o conteúdo a ser escrito em arquivos `.ts` dentro de `src/modules/` segue os padrões de messaging do archetype service-nest:\n\n1. **MESSAGE PATTERNS**: nomes seguem convenção `{domain}.{camelCaseAction}` para RPC e `{domain}.{pastTenseVerb}` para eventos. Máximo 3 segmentos separados por ponto.\n\n2. **DECORATORS CORRETOS**: controllers usam `@MessagePattern` (RPC) ou `@EventPattern` (fire-and-forget). NUNCA usar decorators HTTP (@Get, @Post, @Put, @Delete, @Patch) em controllers de serviço.\n\n3. **DTOs ZOD**: toda mensagem recebida tem DTO definido com `createZodDto` a partir de schema Zod. Schemas nomeados com sufixo `Schema` em PascalCase.\n\n4. **PROPAGAÇÃO DE CONTEXTO**: se o handler precisa de user context, usar `@User()` decorator (obtido via CLS). Nunca extrair user manualmente dos headers no controller.\n\n5. **SEPARAÇÃO DE RESPONSABILIDADES**: controller apenas valida e delega ao service. Lógica de negócio e queries Kysely ficam no service.\n\n6. **RETORNO TIPADO**: handlers @MessagePattern retornam tipo explícito. Handlers @EventPattern retornam `Promise<void>`.\n\nSe encontrar problemas, sugira correções específicas ANTES da escrita. Se estiver tudo correto, permita a escrita sem comentários."
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "Build After Agent",
+  "version": "1.0.0",
+  "description": "Roda o build após execução do agente para verificar se o código compila",
+  "when": {
+    "type": "agentStop"
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "npm run build"
+  }
+}
