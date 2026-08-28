@@ -1,0 +1,12 @@
+{
+  "name": "Kiro Doctor",
+  "version": "1.0.0",
+  "description": "Verifica a saúde do projeto: lint, build e testes",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Execute os seguintes comandos em sequência e reporte os resultados: 1) npm run lint 2) npm run build 3) npm test. Se algum falhar, analise o erro e sugira correções."
+  }
+}

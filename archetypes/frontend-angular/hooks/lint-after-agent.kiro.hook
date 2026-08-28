@@ -1,0 +1,12 @@
+{
+  "name": "Lint After Agent",
+  "version": "1.0.0",
+  "description": "Roda o lint após execução do agente",
+  "when": {
+    "type": "agentStop"
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "npm run lint"
+  }
+}
