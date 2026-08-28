@@ -1,0 +1,13 @@
+{
+  "name": "Review Vision Scope",
+  "version": "1.0.0",
+  "description": "Revisa se queries que retornam dados de usuário aplicam vision scope",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["**/*.service.ts", "**/*.query.ts", "**/*-queries.service.ts"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Revise o arquivo editado. Verifique se todas as queries que retornam dados específicos de usuário (accounts, leads, tasks) aplicam o vision scope filter via buildViewScopeFilter() ou checagem de permissão via CustomersPermissionService. Se uma query retornar dados de domínio sem filtro de escopo, sinalize como potencial falha de segurança e sugira a correção."
+  }
+}
