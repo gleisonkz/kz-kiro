@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.0 (2026-08-28)
+
+### Funcionalidades
+
+- Adicionar agentes de code review: code, architecture, security, performance, consistency
+- Adicionar review-rules.yml com regras de validacao estatica
+- Adicionar workflow kiro-code-review.yml com agentes em paralelo e quality gate
+- Adicionar CODEOWNERS com placeholders para times
+- Adicionar scripts de validacao estatica: async-usage, missing-tests, breaking-changes
+
 ## 0.1.0 (2026-08-28)
 
 ### Funcionalidades
