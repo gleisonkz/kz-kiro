@@ -9,7 +9,7 @@
 #   ./scripts/bootstrap-workflows.sh [opções]
 #
 # Opções:
-#   --project-type <nome>  Tipo de projeto (backend-csharp, bff-fastify, frontend-react)
+#   --project-type <nome>  Tipo de projeto (backend-csharp, bff-fastify, frontend-react, api-nest)
 #   --target <caminho>     Caminho para o diretório do projeto destino
 #   --force                Sobrescreve arquivos existentes em .github/workflows/
 #   --dry-run              Mostra o que seria feito sem executar
@@ -32,7 +32,7 @@ ARCHETYPES_DIR="${REPO_ROOT}/archetypes"
 WORKFLOWS_SCRIPTS_DIR="${REPO_ROOT}/workflows/scripts"
 
 # Archetypes válidos
-VALID_ARCHETYPES=("backend-csharp" "bff-fastify" "frontend-react")
+VALID_ARCHETYPES=("backend-csharp" "bff-fastify" "frontend-react" "api-nest")
 
 # Cores para output
 RED='\033[0;31m'
@@ -75,7 +75,7 @@ Uso:
   ./scripts/bootstrap-workflows.sh [opções]
 
 Opções:
-  --project-type <nome>  Tipo de projeto (backend-csharp, bff-fastify, frontend-react)
+  --project-type <nome>  Tipo de projeto (backend-csharp, bff-fastify, frontend-react, api-nest)
   --target <caminho>     Caminho para o diretório do projeto destino
   --force                Sobrescreve arquivos existentes em .github/workflows/
   --dry-run              Mostra o que seria feito sem executar
