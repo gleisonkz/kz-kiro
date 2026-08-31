@@ -301,9 +301,9 @@ copy_agents() {
   done
 
   # Resumo de agentes
-  [[ ${agents_copied} -gt 0 ]] && log_info "  Agentes novos copiados: ${agents_copied}"
-  [[ ${agents_updated} -gt 0 ]] && log_info "  Agentes atualizados: ${agents_updated}"
-  [[ ${agents_skipped} -gt 0 ]] && log_info "  Agentes inalterados: ${agents_skipped}"
+  [[ ${agents_copied} -gt 0 ]] && log_info "  Agentes novos copiados: ${agents_copied}" || true
+  [[ ${agents_updated} -gt 0 ]] && log_info "  Agentes atualizados: ${agents_updated}" || true
+  [[ ${agents_skipped} -gt 0 ]] && log_info "  Agentes inalterados: ${agents_skipped}" || true
 
   # Contar agentes customizados preservados
   local custom_count=0
@@ -315,7 +315,7 @@ copy_agents() {
       ((custom_count++)) || true
     fi
   done
-  [[ ${custom_count} -gt 0 ]] && log_info "  Agentes customizados preservados: ${custom_count}"
+  [[ ${custom_count} -gt 0 ]] && log_info "  Agentes customizados preservados: ${custom_count}" || true
 }
 
 # -----------------------------------------------------------------------------
@@ -559,8 +559,8 @@ main() {
 
   log_info "Archetype:  ${ARCHETYPE}"
   log_info "Destino:    ${TARGET_DIR}"
-  [[ "${DRY_RUN}" == true ]] && log_warn "Modo DRY-RUN ativado — nenhuma mudança será aplicada."
-  [[ "${FORCE}" == true ]] && log_warn "Modo --force ativado — workflows existentes serão sobrescritos."
+  [[ "${DRY_RUN}" == true ]] && log_warn "Modo DRY-RUN ativado — nenhuma mudança será aplicada." || true
+  [[ "${FORCE}" == true ]] && log_warn "Modo --force ativado — workflows existentes serão sobrescritos." || true
   echo ""
 
   copy_workflows
@@ -581,7 +581,7 @@ main() {
     log_success "Bootstrap de workflows concluído!"
     echo ""
     log_info "  Arquivos copiados:  ${FILES_COPIED}"
-    [[ ${FILES_SKIPPED} -gt 0 ]] && log_warn "  Arquivos pulados:   ${FILES_SKIPPED} (já existiam, use --force)"
+    [[ ${FILES_SKIPPED} -gt 0 ]] && log_warn "  Arquivos pulados:   ${FILES_SKIPPED} (já existiam, use --force)" || true
     log_info "  Ações realizadas:   ${ACTIONS_PERFORMED}"
     echo ""
     log_info "Próximos passos:"
