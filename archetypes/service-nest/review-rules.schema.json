@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ReviewRulesConfig",
+  "type": "object",
+  "required": ["version", "archetype", "rules"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "enum": ["1.0"]
+    },
+    "archetype": {
+      "type": "string",
+      "enum": ["backend-csharp", "service-nest", "api-nest", "bff-fastify", "frontend-react", "mobile-flutter"]
+    },
+    "agent_review": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "agent": { "type": "string" },
+        "timeout_seconds": { "type": "integer", "minimum": 30, "maximum": 600 }
+      },
+      "required": ["enabled"]
+    },
+    "rules": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": ["severity"],
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": ["error", "warn", "disabled"]
+          },
+          "description": { "type": "string" }
+        }
+      }
+    }
+  }
+}

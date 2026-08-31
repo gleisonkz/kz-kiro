@@ -1,0 +1,27 @@
+version: "1.0"
+archetype: service-nest
+
+agent_review:
+  enabled: true
+  agent: code-reviewer
+  timeout_seconds: 300
+
+rules:
+  missing_tests:
+    severity: error
+    description: "Código novo sem testes correspondentes"
+  security_violation:
+    severity: error
+    description: "Vulnerabilidade detectada em dependências"
+  breaking_change_without_note:
+    severity: error
+    description: "Breaking change sem documentação"
+  no_floating_promises:
+    severity: error
+    description: "Promise não tratada (floating promise) — viola no-floating-promises"
+  coverage_below_threshold:
+    severity: error
+    description: "Cobertura abaixo de 80%"
+  message_idempotency_missing:
+    severity: error
+    description: "Handler de mensagem/evento sem garantia de idempotência"

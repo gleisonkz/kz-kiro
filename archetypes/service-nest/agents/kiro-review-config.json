@@ -1,0 +1,39 @@
+{
+  "agents": [
+    {
+      "id": "code",
+      "agent": "cli-code-reviewer",
+      "name": "📝 Qualidade de Código",
+      "summary": "Expandir revisão de código",
+      "prompt": "This is a code review for a NestJS microservice project (RabbitMQ, Kysely, BullMQ). Focus on TypeScript idioms, no-floating-promises, NestJS dependency injection, Zod DTOs, Kysely queries directly in the service, Jest tests (AAA), and naming conventions."
+    },
+    {
+      "id": "architecture",
+      "agent": "cli-architecture-reviewer",
+      "name": "🏗️ Arquitetura",
+      "summary": "Expandir revisão de arquitetura",
+      "prompt": "This is an architecture review for a NestJS microservice project (RabbitMQ, Kysely, BullMQ). Focus on RabbitMQ messaging patterns (request-reply vs event vs pubsub), module organization, Kysely queries directly in the service (no repository pattern), BullMQ batch patterns, user context propagation via CLS, typed Zod config, and resilience (DLQ, retry, distributed lock)."
+    },
+    {
+      "id": "security",
+      "agent": "cli-security-reviewer",
+      "name": "🔒 Segurança",
+      "summary": "Expandir revisão de segurança",
+      "prompt": "This is a security review for a NestJS microservice project (RabbitMQ, Kysely, BullMQ). Focus on the user propagated via RMQ headers (do not trust it blindly, validate ownership/roles in guards), no PII in event payloads, secret exposure, SQL injection in Kysely, message idempotency, and Zod validation. If no security-relevant code was changed, confirm that briefly."
+    },
+    {
+      "id": "performance",
+      "agent": "cli-performance-reviewer",
+      "name": "⚡ Performance",
+      "summary": "Expandir revisão de performance",
+      "prompt": "This is a performance review for a NestJS microservice project (RabbitMQ, Kysely, BullMQ). Focus on N+1 in Kysely, projections, async misuse and floating promises, BullMQ concurrency/backoff, efficient Redis locking, pg connection pooling, and avoiding unnecessary broadcast."
+    },
+    {
+      "id": "consistency",
+      "agent": "cli-consistency-reviewer",
+      "name": "🔗 Consistência",
+      "summary": "Expandir revisão de consistência",
+      "prompt": "This is a consistency review for a NestJS microservice project (RabbitMQ, Kysely, BullMQ). Identify patterns that were applied in one place but not in similar locations across the repository. Focus on partially applied fixes, message patterns renamed without all clients updated, guards missing on analogous handlers, and divergent styles within the same PR."
+    }
+  ]
+}

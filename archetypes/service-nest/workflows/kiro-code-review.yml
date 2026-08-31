@@ -1,0 +1,551 @@
+# Kiro Code Review — Archetype Service NestJS
+# Workflow completo de code review com agentes especializados em paralelo.
+# Inclui: PR description automática, validações estáticas, review com IA, quality gate.
+#
+# Configuração dos agentes: .kiro/settings/review-config.json
+# Scripts de validação: .kiro/scripts/
+# Requires GitHub Secret: KIRO_API_KEY
+
+name: Kiro Code Review
+
+on:
+  pull_request:
+    branches: [develop]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  # --- Preparar lista de arquivos alterados e carregar config ---
+  prepare:
+    name: Prepare
+    runs-on: ubuntu-latest
+    outputs:
+      has_changes: ${{ steps.changes.outputs.has_changes }}
+      changed_files: ${{ steps.changes.outputs.changed_files }}
+      diff_content: ${{ steps.diff.outputs.diff_content }}
+      agents: ${{ steps.config.outputs.agents }}
+      agents_count: ${{ steps.config.outputs.agents_count }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Fetch base branch
+        run: git fetch origin develop --depth=1
+
+      - name: Get changed files
+        id: changes
+        run: |
+          FILES=$(git diff --name-only origin/develop...HEAD | grep -v '^\.' | head -50)
+          if [ -z "$FILES" ]; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "changed_files=" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+            echo "changed_files<<$EOF" >> "$GITHUB_OUTPUT"
+            echo "$FILES" >> "$GITHUB_OUTPUT"
+            echo "$EOF" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate diff for PR description
+        id: diff
+        run: |
+          DIFF=$(git diff origin/develop...HEAD -- . ':(exclude)*.lock*' ':(exclude)*.json' | head -n 500)
+          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+          echo "diff_content<<$EOF" >> "$GITHUB_OUTPUT"
+          echo "$DIFF" >> "$GITHUB_OUTPUT"
+          echo "$EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Read review config
+        id: config
+        run: |
+          CONFIG_FILE=".kiro/settings/review-config.json"
+          if [ ! -f "$CONFIG_FILE" ]; then
+            echo "::error::Config file not found: $CONFIG_FILE"
+            exit 1
+          fi
+          AGENTS=$(jq -c '.agents' "$CONFIG_FILE")
+          echo "agents=${AGENTS}" >> "$GITHUB_OUTPUT"
+          echo "agents_count=$(jq '.agents | length' "$CONFIG_FILE")" >> "$GITHUB_OUTPUT"
+
+  # --- Gerar PR description (apenas se vazia ou gerada pelo Kiro) ---
+  pr-description:
+    name: "📝 PR Description"
+    needs: prepare
+    if: needs.prepare.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Check PR description ownership
+        id: ownership
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const KIRO_FOOTER = '*Descrição gerada automaticamente por [Kiro CLI](https://kiro.dev)*';
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+            const currentBody = pr.body || '';
+            const isBlank = currentBody.trim() === '';
+            const isKiroGenerated = currentBody.includes(KIRO_FOOTER);
+            const shouldGenerate = isBlank || isKiroGenerated;
+            core.setOutput('should_generate', shouldGenerate.toString());
+            console.log(`Blank: ${isBlank}, Kiro-owned: ${isKiroGenerated}, Will generate: ${shouldGenerate}`);
+
+      - name: Install Kiro CLI
+        if: steps.ownership.outputs.should_generate == 'true'
+        run: curl -fsSL https://cli.kiro.dev/install | bash
+
+      - name: Generate PR description
+        if: steps.ownership.outputs.should_generate == 'true'
+        env:
+          KIRO_API_KEY: ${{ secrets.KIRO_API_KEY }}
+          KIRO_LOG_NO_COLOR: "1"
+          NO_COLOR: "1"
+          TERM: dumb
+          DIFF_CONTENT: ${{ needs.prepare.outputs.diff_content }}
+        run: |
+          kiro-cli chat --no-interactive --trust-tools=read \
+            "Escreva uma descrição de PR para um microserviço NestJS (RabbitMQ, Kysely, BullMQ). \
+             A descrição deve refletir o estado COMPLETO atual do PR incluindo todos os commits. \
+             Comece com '## Resumo', sumarize as mudanças principais, liste quais módulos de domínio \
+             foram afetados e potenciais riscos (especialmente contratos de mensagem, idempotência e floating promises). Mantenha em até 200 palavras. \
+             Escreva em português do Brasil. \
+             IMPORTANTE: Output a linha <<<BEGIN_DESCRIPTION>>> antes da resposta e <<<END_DESCRIPTION>>> depois. \
+             Conteúdo do diff: \
+             ${DIFF_CONTENT}" \
+            2>&1 | sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' \
+                 | sed 's/\x1b\[[?][0-9]*[a-zA-Z]//g' > /tmp/kiro-description-raw.txt || true
+
+          python3 -c "
+          import re
+          with open('/tmp/kiro-description-raw.txt') as f:
+              content = f.read()
+          content = re.sub(r'\x1b(?:[@-Z\\\\-_]|\[[0-?]*[ -/]*[@-~])', '', content)
+          match = re.search(r'<<<BEGIN_DESCRIPTION>>>(.*?)<<<END_DESCRIPTION>>>', content, re.DOTALL)
+          if match:
+              result = match.group(1).strip()
+          else:
+              lines = content.split('\n')
+              result_lines = [
+                  l for l in lines
+                  if not re.match(r'^\s*[✓❗⋮▸]', l)
+                  and not re.match(r'^\s*(Let me|I (will|now|have|need)|Reading|Operation|Successfully|Completed|Batch|using tool:|Credits:)', l)
+              ]
+              result = '\n'.join(result_lines).strip()
+          if not result:
+              result = content.strip()
+          with open('/tmp/kiro-description.md', 'w') as f:
+              f.write(result)
+          "
+
+      - name: Update PR description
+        if: steps.ownership.outputs.should_generate == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const KIRO_FOOTER = '*Descrição gerada automaticamente por [Kiro CLI](https://kiro.dev)*';
+            const description = fs.readFileSync('/tmp/kiro-description.md', 'utf8');
+            const body = `${description}\n\n---\n${KIRO_FOOTER}`;
+
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              body: body,
+            });
+
+  # --- Validações estáticas (scripts determinísticos) ---
+  static-checks:
+    name: "🔍 Static Checks"
+    needs: prepare
+    if: needs.prepare.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Fetch base branch
+        run: git fetch origin develop --depth=1
+
+      - name: Save changed files list
+        env:
+          CHANGED_FILES: ${{ needs.prepare.outputs.changed_files }}
+        run: |
+          echo "$CHANGED_FILES" > /tmp/changed-files.txt
+
+      - name: Check floating promises
+        run: |
+          chmod +x .kiro/scripts/check-floating-promises.sh
+          .kiro/scripts/check-floating-promises.sh /tmp/changed-files.txt /tmp/review-results
+        continue-on-error: true
+
+      - name: Check breaking changes
+        run: |
+          chmod +x .kiro/scripts/check-breaking-changes.sh
+          .kiro/scripts/check-breaking-changes.sh /tmp/changed-files.txt /tmp/review-results
+        continue-on-error: true
+
+      - name: Check missing tests
+        run: |
+          chmod +x .kiro/scripts/check-missing-tests.sh
+          .kiro/scripts/check-missing-tests.sh /tmp/changed-files.txt /tmp/review-results
+        continue-on-error: true
+
+      - name: Consolidate static check results
+        id: results
+        run: |
+          TOTAL_VIOLATIONS=0
+          SUMMARY=""
+
+          for result_file in /tmp/review-results/*.json; do
+            if [ ! -f "$result_file" ]; then
+              continue
+            fi
+            COUNT=$(jq '.violations | length' "$result_file")
+            STATUS=$(jq -r '.status' "$result_file")
+            CHECK_NAME=$(basename "$result_file" .json)
+
+            if [ "$COUNT" -gt 0 ]; then
+              TOTAL_VIOLATIONS=$((TOTAL_VIOLATIONS + COUNT))
+              SUMMARY="${SUMMARY}\n- **${CHECK_NAME}**: ${COUNT} violação(ões)"
+            fi
+          done
+
+          echo "total_violations=${TOTAL_VIOLATIONS}" >> "$GITHUB_OUTPUT"
+
+          # Gerar markdown com resultados
+          {
+            if [ "$TOTAL_VIOLATIONS" -eq 0 ]; then
+              echo "✅ Nenhuma violação encontrada nas validações estáticas."
+            else
+              echo "⚠️ **${TOTAL_VIOLATIONS} violação(ões) encontrada(s):**"
+              echo ""
+              echo -e "$SUMMARY"
+              echo ""
+              echo "---"
+              echo ""
+              for result_file in /tmp/review-results/*.json; do
+                if [ ! -f "$result_file" ]; then
+                  continue
+                fi
+                COUNT=$(jq '.violations | length' "$result_file")
+                if [ "$COUNT" -eq 0 ]; then
+                  continue
+                fi
+                CHECK_NAME=$(basename "$result_file" .json)
+                echo "#### ${CHECK_NAME}"
+                echo ""
+                jq -r '.violations[] | "- \(.severity): \(.message) (\(.file // "N/A"):\(.line // "N/A"))"' "$result_file"
+                echo ""
+              done
+            fi
+          } > /tmp/static-checks-report.md
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: static-checks
+          path: /tmp/static-checks-report.md
+          retention-days: 1
+
+  # --- Executar revisões com IA em paralelo via matrix ---
+  review:
+    name: "${{ matrix.agent.name }}"
+    needs: prepare
+    if: needs.prepare.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        agent: ${{ fromJson(needs.prepare.outputs.agents) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Install Kiro CLI
+        run: curl -fsSL https://cli.kiro.dev/install | bash
+
+      - name: "Run review: ${{ matrix.agent.id }}"
+        env:
+          KIRO_API_KEY: ${{ secrets.KIRO_API_KEY }}
+          CHANGED_FILES: ${{ needs.prepare.outputs.changed_files }}
+          AGENT_NAME: ${{ matrix.agent.agent }}
+          AGENT_PROMPT: ${{ matrix.agent.prompt }}
+        run: |
+          set -eo pipefail
+          KIRO_EXIT=0
+          kiro-cli chat \
+            --no-interactive \
+            --trust-tools=read \
+            --agent="${AGENT_NAME}" \
+            "${AGENT_PROMPT}
+
+          The following files were changed in this PR:
+
+          ${CHANGED_FILES}
+
+          Read each changed file and review it following your agent instructions. You have access to the full repository for context. Be direct and actionable. Categorize findings by severity. Format output as markdown." \
+            > /tmp/review-${{ matrix.agent.id }}.txt 2>&1 || KIRO_EXIT=$?
+          if [ $KIRO_EXIT -ne 0 ]; then
+            echo "::warning::${{ matrix.agent.agent }} exited with code $KIRO_EXIT"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: review-${{ matrix.agent.id }}
+          path: /tmp/review-${{ matrix.agent.id }}.txt
+          retention-days: 1
+
+  # --- Consolidar e postar comentário ---
+  post-review:
+    name: "💬 Post Review"
+    needs: [prepare, review, static-checks, pr-description]
+    if: always() && needs.prepare.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      has_blockers: ${{ steps.gate.outputs.has_blockers }}
+      blocker_summary: ${{ steps.gate.outputs.blocker_summary }}
+    env:
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download review artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/reviews
+          pattern: review-*
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Download static checks report
+        uses: actions/download-artifact@v4
+        with:
+          name: static-checks
+          path: /tmp/static-checks
+        continue-on-error: true
+
+      - name: Post consolidated review comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AGENTS_COUNT: ${{ needs.prepare.outputs.agents_count }}
+        run: |
+          CONFIG_FILE=".kiro/settings/review-config.json"
+
+          # Função para extrair conteúdo limpo de um arquivo de review
+          extract_review() {
+            local file="$1"
+            if [ ! -f "$file" ]; then
+              echo "_Nenhum resultado disponível._"
+              return
+            fi
+            local tmp_cleaned="/tmp/review_cleaned_$$.txt"
+            perl -pe 's/\e\[[0-9;]*[mGKHJF]//g; s/\e\][^\a]*\a//g; s/\e\[[\?]?[0-9;]*[a-zA-Z]//g; s/\x1b[^[]*//g; s/\r//g' "$file" > "$tmp_cleaned"
+            local tmp_content="/tmp/review_content_$$.txt"
+            sed -n '/<!-- REVIEW_START -->/,/<!-- REVIEW_END -->/{ /<!-- REVIEW_START -->/d; /<!-- REVIEW_END -->/d; p; }' "$tmp_cleaned" > "$tmp_content"
+            if [ ! -s "$tmp_content" ]; then
+              sed -n '/^#/,$ p' "$tmp_cleaned" | grep -v '^ *▸' | grep -v '^ *Credits:' > "$tmp_content" || true
+            fi
+            if [ ! -s "$tmp_content" ]; then
+              echo "_Nenhum problema encontrado. ✅_"
+            else
+              cat "$tmp_content"
+            fi
+            rm -f "$tmp_cleaned" "$tmp_content"
+          }
+
+          COMMENT_MARKER='<!-- kiro-code-review-bot -->'
+
+          # Construir comentário dinamicamente a partir do config
+          {
+            echo "$COMMENT_MARKER"
+            echo "## 🤖 Kiro Code Review"
+            echo ""
+            echo "Revisão automática executada por ${AGENTS_COUNT} agentes especializados."
+            echo ""
+            echo "---"
+            echo ""
+
+            # Seção de validações estáticas
+            if [ -f "/tmp/static-checks/static-checks-report.md" ]; then
+              echo "### 🔍 Validações Estáticas"
+              echo ""
+              echo "<details>"
+              echo "<summary>Expandir resultados das validações estáticas</summary>"
+              echo ""
+              cat "/tmp/static-checks/static-checks-report.md"
+              echo ""
+              echo "</details>"
+              echo ""
+              echo "---"
+              echo ""
+            fi
+
+            AGENT_NAMES=""
+            while IFS= read -r row; do
+              local_id=$(echo "$row" | jq -r '.id')
+              local_name=$(echo "$row" | jq -r '.name')
+              local_summary=$(echo "$row" | jq -r '.summary')
+              local_agent=$(echo "$row" | jq -r '.agent' | sed 's/^cli-//' | sed 's/-reviewer$//')
+
+              echo "### ${local_name}"
+              echo ""
+              echo "<details>"
+              echo "<summary>${local_summary}</summary>"
+              echo ""
+              extract_review "/tmp/reviews/review-${local_id}.txt"
+              echo ""
+              echo "</details>"
+              echo ""
+
+              if [ -n "$AGENT_NAMES" ]; then
+                AGENT_NAMES="${AGENT_NAMES}, ${local_agent}"
+              else
+                AGENT_NAMES="${local_agent}"
+              fi
+            done < <(jq -c '.agents[]' "$CONFIG_FILE")
+
+            echo "---"
+            echo "*Revisão automática por [Kiro CLI](https://kiro.dev) · agentes: ${AGENT_NAMES}*"
+          } > /tmp/kiro-comment.md
+
+          if [ "$(wc -c < /tmp/kiro-comment.md)" -lt 100 ]; then
+            echo "Review comment too short, skipping."
+            exit 0
+          fi
+
+          # Buscar comentário existente do Kiro nesta PR
+          EXISTING_COMMENT_ID=$(
+            gh api \
+              "repos/${{ github.repository }}/issues/${PR_NUMBER}/comments" \
+              --paginate \
+              --jq ".[] | select(.body | contains(\"$COMMENT_MARKER\")) | .id" \
+            | head -1
+          )
+
+          # Função de publicação com retry
+          post_comment() {
+            local attempt=1
+            local max_attempts=2
+
+            if [ -n "$EXISTING_COMMENT_ID" ]; then
+              while [ $attempt -le $max_attempts ]; do
+                if gh api --method PATCH \
+                  "repos/${{ github.repository }}/issues/comments/${EXISTING_COMMENT_ID}" \
+                  -F "body=@/tmp/kiro-comment.md" 2>/dev/null; then
+                  echo "Comment updated successfully (attempt $attempt)"
+                  return 0
+                fi
+                echo "::warning::Comment update failed (attempt $attempt/$max_attempts)"
+                attempt=$((attempt + 1))
+              done
+            else
+              while [ $attempt -le $max_attempts ]; do
+                if gh pr comment "$PR_NUMBER" --body-file /tmp/kiro-comment.md 2>/dev/null; then
+                  echo "Comment posted successfully (attempt $attempt)"
+                  return 0
+                fi
+                echo "::warning::Comment post failed (attempt $attempt/$max_attempts)"
+                attempt=$((attempt + 1))
+              done
+            fi
+
+            echo "::error::Failed to post review comment after $max_attempts attempts"
+            return 1
+          }
+
+          post_comment
+
+      - name: Check for blocking findings
+        id: gate
+        run: |
+          # Padrões que indicam severidade bloqueante no output dos agentes
+          BLOCKER_PATTERNS=(
+            "Bloqueante"
+            "Crítico"
+            "bloqueante"
+            "crítico"
+            "## 1\. \*\*Bloqueante"
+            "## 1\. \*\*Crítico"
+            "\*\*Bloqueante\*\*"
+            "\*\*Crítico\*\*"
+          )
+
+          HAS_BLOCKERS=false
+          BLOCKER_AGENTS=""
+
+          CONFIG_FILE=".kiro/settings/review-config.json"
+
+          # Verificar outputs dos agentes de IA
+          while IFS= read -r row; do
+            local_id=$(echo "$row" | jq -r '.id')
+            local_name=$(echo "$row" | jq -r '.name')
+            REVIEW_FILE="/tmp/reviews/review-${local_id}.txt"
+
+            if [ ! -f "$REVIEW_FILE" ]; then
+              continue
+            fi
+
+            CLEAN_CONTENT=$(perl -pe 's/\e\[[0-9;]*[mGKHJF]//g; s/\e\][^\a]*\a//g; s/\e\[[\?]?[0-9;]*[a-zA-Z]//g; s/\x1b[^[]*//g; s/\r//g' "$REVIEW_FILE")
+
+            for pattern in "${BLOCKER_PATTERNS[@]}"; do
+              if echo "$CLEAN_CONTENT" | grep -qiE "$pattern"; then
+                # Verificar se não é um falso positivo
+                if echo "$CLEAN_CONTENT" | grep -qiE "(nenhum|sem|zero|não há).*(bloqueante|crítico)"; then
+                  continue
+                fi
+                HAS_BLOCKERS=true
+                if [[ "$BLOCKER_AGENTS" != *"$local_name"* ]]; then
+                  BLOCKER_AGENTS="${BLOCKER_AGENTS}${BLOCKER_AGENTS:+, }${local_name}"
+                fi
+                break
+              fi
+            done
+          done < <(jq -c '.agents[]' "$CONFIG_FILE")
+
+          # Verificar resultados das validações estáticas (severity: error = bloqueante)
+          if [ -f "/tmp/static-checks/static-checks-report.md" ]; then
+            if grep -q "violação" "/tmp/static-checks/static-checks-report.md"; then
+              HAS_BLOCKERS=true
+              if [[ "$BLOCKER_AGENTS" != *"Static Checks"* ]]; then
+                BLOCKER_AGENTS="${BLOCKER_AGENTS}${BLOCKER_AGENTS:+, }🔍 Static Checks"
+              fi
+            fi
+          fi
+
+          echo "has_blockers=${HAS_BLOCKERS}" >> "$GITHUB_OUTPUT"
+          echo "blocker_summary=${BLOCKER_AGENTS}" >> "$GITHUB_OUTPUT"
+
+          if [ "$HAS_BLOCKERS" = true ]; then
+            echo "::warning::Findings bloqueantes detectados em: ${BLOCKER_AGENTS}"
+          else
+            echo "✅ Nenhum finding bloqueante detectado."
+          fi
+
+  # --- Quality Gate: falha o workflow se houver findings bloqueantes ---
+  quality-gate:
+    name: "🚦 Quality Gate"
+    needs: [post-review]
+    if: always() && needs.post-review.outputs.has_blockers == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Block PR due to critical findings
+        run: |
+          echo "::error::❌ PR bloqueada por findings de severidade Bloqueante/Crítico."
+          echo ""
+          echo "Agentes com findings bloqueantes: ${{ needs.post-review.outputs.blocker_summary }}"
+          echo ""
+          echo "Resolva os itens marcados como 'Bloqueante' ou 'Crítico' no comentário do Kiro Code Review e faça push novamente."
+          exit 1
