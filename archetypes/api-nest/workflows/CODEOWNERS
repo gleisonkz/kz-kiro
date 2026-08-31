@@ -1,0 +1,15 @@
+# Gerado pelo archetype api-nest
+# Substitua os placeholders pelos times do seu projeto.
+
+# Código fonte principal
+*   {{ team_default }}
+
+# Módulos de domínio
+src/modules/   {{ team_default }}
+
+# Infraestrutura e CI
+.github/   {{ team_platform }}
+Dockerfile {{ team_platform }}
+
+# Configuração de review
+review-rules.yml {{ team_leads }}

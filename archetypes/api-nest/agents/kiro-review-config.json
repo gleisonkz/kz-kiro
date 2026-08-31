@@ -1,0 +1,39 @@
+{
+  "agents": [
+    {
+      "id": "code",
+      "agent": "cli-code-reviewer",
+      "name": "📝 Qualidade de Código",
+      "summary": "Expandir revisão de código",
+      "prompt": "This is a code review for a NestJS REST API project (TypeScript). Focus on TypeScript idioms, NestJS patterns, Kysely usage, class-validator DTOs, async correctness, dependency injection, naming conventions and test coverage."
+    },
+    {
+      "id": "architecture",
+      "agent": "cli-architecture-reviewer",
+      "name": "🏗️ Arquitetura",
+      "summary": "Expandir revisão de arquitetura",
+      "prompt": "This is an architecture review for a NestJS REST API project. Focus on module boundaries, dual database pattern (Kysely vs TypeORM), vision scope enforcement, SSRM engine usage, controller/service separation, and coupling between domain modules."
+    },
+    {
+      "id": "security",
+      "agent": "cli-security-reviewer",
+      "name": "🔒 Segurança",
+      "summary": "Expandir revisão de segurança",
+      "prompt": "This is a security review for a NestJS REST API project. Focus on JWT/Cognito authentication, vision scope authorization, input validation, SQL injection via Kysely/TypeORM, secret exposure, OWASP Top 10, and secure coding practices. If no security-relevant code was changed, confirm that briefly."
+    },
+    {
+      "id": "performance",
+      "agent": "cli-performance-reviewer",
+      "name": "⚡ Performance",
+      "summary": "Expandir revisão de performance",
+      "prompt": "This is a performance review for a NestJS REST API project. Focus on Kysely query efficiency, TypeORM N+1 problems, async/await misuse, SSRM pagination correctness, memory leaks in services, RabbitMQ message handling, and caching opportunities."
+    },
+    {
+      "id": "consistency",
+      "agent": "cli-consistency-reviewer",
+      "name": "🔗 Consistência",
+      "summary": "Expandir revisão de consistência",
+      "prompt": "This is a consistency review for a NestJS REST API project. Identify patterns that were applied in one place but not in similar locations across the repository. Focus on partially applied fixes, DTOs changed without all usages updated, vision scope applied inconsistently, and divergent styles within the same PR."
+    }
+  ]
+}

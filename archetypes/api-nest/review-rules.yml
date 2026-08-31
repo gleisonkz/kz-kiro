@@ -1,0 +1,27 @@
+version: "1.0"
+archetype: api-nest
+
+agent_review:
+  enabled: true
+  agent: code-reviewer
+  timeout_seconds: 300
+
+rules:
+  missing_tests:
+    severity: error
+    description: "Código novo sem testes correspondentes (*.spec.ts)"
+  security_violation:
+    severity: error
+    description: "Vulnerabilidade detectada em dependências"
+  breaking_change_without_note:
+    severity: error
+    description: "Breaking change em contrato público sem documentação"
+  missing_vision_scope:
+    severity: error
+    description: "Endpoint que retorna dados de usuário sem vision scope"
+  typeorm_native_method:
+    severity: error
+    description: "Uso de método TypeORM nativo (find/findOne/getMany) proibido pelo ESLint"
+  coverage_below_threshold:
+    severity: error
+    description: "Cobertura abaixo de 80%"
