@@ -1,0 +1,30 @@
+version: "1.0"
+archetype: frontend-angular
+
+agent_review:
+  enabled: true
+  agent: code-reviewer
+  timeout_seconds: 300
+
+rules:
+  missing_tests:
+    severity: error
+    description: "Código novo sem testes correspondentes (.spec.ts)"
+  security_violation:
+    severity: error
+    description: "Vulnerabilidade detectada em dependências"
+  breaking_change_without_note:
+    severity: error
+    description: "Breaking change sem documentação"
+  memory_leak_risk:
+    severity: error
+    description: "Subscription sem unsubscribe/takeUntil (risco de memory leak)"
+  change_detection_issue:
+    severity: warn
+    description: "Problema de change detection (*ngFor sem trackBy, função no template)"
+  bundle_budget_exceeded:
+    severity: error
+    description: "Bundle acima dos budgets de build (initial 10mb warn / 25mb error)"
+  coverage_below_threshold:
+    severity: error
+    description: "Cobertura abaixo de 80%"

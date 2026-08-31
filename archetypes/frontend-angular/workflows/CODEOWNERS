@@ -1,0 +1,16 @@
+# Gerado pelo archetype frontend-angular
+# Substitua os placeholders pelos times do seu projeto.
+
+# Código fonte principal
+*   {{ team_default }}
+
+# Aplicação e libs do monorepo Nx
+src/app/   {{ team_default }}
+projects/   {{ team_default }}
+
+# Infraestrutura e CI
+.github/   {{ team_platform }}
+Dockerfile {{ team_platform }}
+
+# Configuração de review
+review-rules.yml {{ team_leads }}

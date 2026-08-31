@@ -1,0 +1,39 @@
+{
+  "agents": [
+    {
+      "id": "code",
+      "agent": "cli-code-reviewer",
+      "name": "📝 Qualidade de Código",
+      "summary": "Expandir revisão de código",
+      "prompt": "This is a code review for an Angular frontend project (Nx monorepo, NgRx ComponentStore). Focus on Angular/TypeScript idioms, correct RxJS usage (takeUntil/destroy$, no nested subscribe), immutable ComponentStore updaters, OnPush change detection, strict typing, Jest tests, and Angular naming conventions (component-selector prefix app)."
+    },
+    {
+      "id": "architecture",
+      "agent": "cli-architecture-reviewer",
+      "name": "🏗️ Arquitetura",
+      "summary": "Expandir revisão de arquitetura",
+      "prompt": "This is an architecture review for an Angular frontend project (Nx monorepo, NgRx ComponentStore). Focus on presentational vs smart container separation, unidirectional data flow, ComponentStore as source of truth, Nx organization (core/features/shared/layout/views), lazy loading per feature, barrel exports, and feature boundaries."
+    },
+    {
+      "id": "security",
+      "agent": "cli-security-reviewer",
+      "name": "🔒 Segurança",
+      "summary": "Expandir revisão de segurança",
+      "prompt": "This is a security review for an Angular frontend project (Nx monorepo, NgRx ComponentStore). Focus on XSS (improper bypassSecurityTrust, innerHTML), Angular sanitization, Cognito auth (token in localStorage risks), route guards (RoleGuard/FeatureToggleGuard), no secrets in the bundle or committed environment files, vulnerable dependencies, and CSP. If no security-relevant code was changed, confirm that briefly."
+    },
+    {
+      "id": "performance",
+      "agent": "cli-performance-reviewer",
+      "name": "⚡ Performance",
+      "summary": "Expandir revisão de performance",
+      "prompt": "This is a performance review for an Angular frontend project (Nx monorepo, NgRx ComponentStore). Focus on change detection (OnPush, trackBy in ngFor), memory leaks (unsubscribe/destroy$), bundle size and budgets, lazy loading, avoiding computations in templates, AG Grid virtualization, and async pipe over manual subscribe."
+    },
+    {
+      "id": "consistency",
+      "agent": "cli-consistency-reviewer",
+      "name": "🔗 Consistência",
+      "summary": "Expandir revisão de consistência",
+      "prompt": "This is a consistency review for an Angular frontend project (Nx monorepo, NgRx ComponentStore). Identify patterns that were applied in one place but not in similar locations across the repository. Focus on partially applied fixes, interfaces changed without all consumers updated, unsubscribe/takeUntil applied in one place but not another, and divergent styles within the same PR."
+    }
+  ]
+}
