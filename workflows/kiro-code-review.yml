@@ -169,7 +169,8 @@ jobs:
             echo ""
 
             AGENT_NAMES=""
-            for row in $(jq -c '.agents[]' "$CONFIG_FILE"); do
+            while IFS= read -r row; do
+              [ -z "$row" ] && continue
               local_id=$(echo "$row" | jq -r '.id')
               local_name=$(echo "$row" | jq -r '.name')
               local_summary=$(echo "$row" | jq -r '.summary')
@@ -190,7 +191,7 @@ jobs:
               else
                 AGENT_NAMES="${local_agent}"
               fi
-            done
+            done < <(jq -c '.agents[]' "$CONFIG_FILE")
 
             echo "---"
             echo "*Revisão automática por [Kiro CLI](https://kiro.dev) · agentes: ${AGENT_NAMES}*"
@@ -264,7 +265,8 @@ jobs:
 
           CONFIG_FILE=".kiro/agents/kiro-review-config.json"
 
-          for row in $(jq -c '.agents[]' "$CONFIG_FILE"); do
+          while IFS= read -r row; do
+            [ -z "$row" ] && continue
             local_id=$(echo "$row" | jq -r '.id')
             local_name=$(echo "$row" | jq -r '.name')
             REVIEW_FILE="/tmp/reviews/review-${local_id}.txt"
@@ -289,7 +291,7 @@ jobs:
                 break
               fi
             done
-          done
+          done < <(jq -c '.agents[]' "$CONFIG_FILE")
 
           echo "has_blockers=${HAS_BLOCKERS}" >> "$GITHUB_OUTPUT"
           echo "blocker_summary=${BLOCKER_AGENTS}" >> "$GITHUB_OUTPUT"
