@@ -10,7 +10,7 @@ name: Kiro Code Review
 
 on:
   pull_request:
-    branches: [develop]
+    branches: [develop, dev]
     types: [opened, synchronize, reopened]
 
 permissions:
@@ -34,12 +34,12 @@ jobs:
           fetch-depth: 2
 
       - name: Fetch base branch
-        run: git fetch origin develop --depth=1
+        run: git fetch origin "${{ github.base_ref }}" --depth=1
 
       - name: Get changed files
         id: changes
         run: |
-          FILES=$(git diff --name-only origin/develop...HEAD | grep -v '^\.' | head -50)
+          FILES=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD" | grep -v '^\.' | head -50)
           if [ -z "$FILES" ]; then
             echo "has_changes=false" >> "$GITHUB_OUTPUT"
             echo "changed_files=" >> "$GITHUB_OUTPUT"
@@ -54,7 +54,7 @@ jobs:
       - name: Generate diff for PR description
         id: diff
         run: |
-          DIFF=$(git diff origin/develop...HEAD -- . ':(exclude)*.lock*' ':(exclude)*.json' | head -n 500)
+          DIFF=$(git diff "origin/${{ github.base_ref }}...HEAD" -- . ':(exclude)*.lock*' ':(exclude)*.json' | head -n 500)
           EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
           echo "diff_content<<$EOF" >> "$GITHUB_OUTPUT"
           echo "$DIFF" >> "$GITHUB_OUTPUT"
@@ -177,7 +177,7 @@ jobs:
           fetch-depth: 2
 
       - name: Fetch base branch
-        run: git fetch origin develop --depth=1
+        run: git fetch origin "${{ github.base_ref }}" --depth=1
 
       - name: Save changed files list
         env:
