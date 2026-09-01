@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1 (2026-09-01)
+
+### CI/CD
+
+- Suportar branch dev e usar base_ref dinamico no workflow de code review
+
 ## 0.2.0 (2026-08-28)
 
 ### Funcionalidades
