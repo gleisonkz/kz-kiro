@@ -25,6 +25,7 @@ jobs:
     outputs:
       has_changes: ${{ steps.changes.outputs.has_changes }}
       changed_files: ${{ steps.changes.outputs.changed_files }}
+      has_source_changes: ${{ steps.changes.outputs.has_source_changes }}
       diff_content: ${{ steps.diff.outputs.diff_content }}
       agents: ${{ steps.config.outputs.agents }}
       agents_count: ${{ steps.config.outputs.agents_count }}
@@ -49,6 +50,20 @@ jobs:
             echo "changed_files<<$EOF" >> "$GITHUB_OUTPUT"
             echo "$FILES" >> "$GITHUB_OUTPUT"
             echo "$EOF" >> "$GITHUB_OUTPUT"
+          fi
+
+          # Detecta se a PR altera codigo-fonte real. O Quality Gate so bloqueia
+          # quando ha codigo-fonte; PRs que so mexem em config/tooling/docs (ex.:
+          # bootstrap do mb-kiro) recebem a revisao mas nao sao bloqueadas.
+          SRC_FILES=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD" \
+            | grep -iE '\.(ts|tsx|js|jsx|mjs|cjs|html|scss|css)$' || true)
+          if [ -z "$SRC_FILES" ]; then
+            echo "has_source_changes=false" >> "$GITHUB_OUTPUT"
+            echo "Nenhuma mudanca em codigo-fonte (.ts/.js/.html/.scss/.css) detectada."
+          else
+            echo "has_source_changes=true" >> "$GITHUB_OUTPUT"
+            echo "Mudancas em codigo-fonte detectadas:"
+            echo "$SRC_FILES"
           fi
 
       - name: Generate diff for PR description
@@ -535,10 +550,16 @@ jobs:
           fi
 
   # --- Quality Gate: falha o workflow se houver findings bloqueantes ---
+  # So bloqueia quando a PR altera codigo-fonte. PRs que tocam apenas
+  # config/tooling/docs (ex.: bootstrap do mb-kiro) recebem a revisao dos
+  # agentes mas nao sao bloqueadas por findings sobre esses arquivos.
   quality-gate:
     name: "🚦 Quality Gate"
-    needs: [post-review]
-    if: always() && needs.post-review.outputs.has_blockers == 'true'
+    needs: [prepare, post-review]
+    if: >-
+      always()
+      && needs.post-review.outputs.has_blockers == 'true'
+      && needs.prepare.outputs.has_source_changes == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Block PR due to critical findings
