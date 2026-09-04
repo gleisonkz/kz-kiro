@@ -249,7 +249,7 @@ Sequência de steps (todos os ambientes):
 9. **Build, tag, and push image to Amazon ECR**
 10. **Download task definition** (describe-task-definition do ECS)
 11. **Remove conflicting env vars** (se necessário — apenas dev no exemplo)
-12. **Render task definition** (`montebravo-corretora/amazon-ecs-render-task-definition@v1`)
+12. **Render task definition** (`aws-actions/amazon-ecs-render-task-definition@v1`)
 13. **Deploy ECS** (`aws-actions/amazon-ecs-deploy-task-definition@v1`)
 
 ### Valores por ambiente
