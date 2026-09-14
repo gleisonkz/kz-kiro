@@ -486,17 +486,67 @@ jobs:
       - name: Check for blocking findings
         id: gate
         run: |
-          # Padrões que indicam severidade bloqueante no output dos agentes
-          BLOCKER_PATTERNS=(
-            "Bloqueante"
-            "Crítico"
-            "bloqueante"
-            "crítico"
-            "## 1\. \*\*Bloqueante"
-            "## 1\. \*\*Crítico"
-            "\*\*Bloqueante\*\*"
-            "\*\*Crítico\*\*"
-          )
+          # Detecta findings de severidade bloqueante/crítica no output dos agentes.
+          #
+          # A análise é feita por SEÇÃO, não por grep no texto inteiro. O agente
+          # organiza o review com um header "## Bloqueante" (ou "## Crítico"). Só
+          # há blocker real se a seção sob esse header contiver conteúdo que não
+          # seja uma negação — em português OU inglês (ex.: "Nenhum.", "None.",
+          # "N/A"). Isso evita o falso positivo em que o header existe mas a seção
+          # apenas declara ausência de bloqueantes, e o falso negativo em que uma
+          # negação em outra parte do texto anulava um finding real.
+          #
+          # Retorna 0 (true) se houver blocker real; 1 (false) caso contrário.
+          section_has_real_blocker() {
+            local content="$1"
+
+            # 1) Análise por seção: extrai o bloco sob um header de severidade
+            #    bloqueante, até o próximo header de nível "## ".
+            local has_header="false"
+            if printf '%s\n' "$content" | grep -qiE '^##[[:space:]].*(bloqueante|cr[ií]tico)'; then
+              has_header="true"
+            fi
+
+            if [ "$has_header" = "true" ]; then
+              local section
+              section=$(printf '%s\n' "$content" | awk '
+                BEGIN { in_section = 0 }
+                /^##[[:space:]]/ {
+                  if (in_section) { in_section = 0 }
+                  if (tolower($0) ~ /bloqueante|cr[ií]tico/) { in_section = 1; next }
+                }
+                in_section { print }
+              ')
+
+              # Normaliza: remove marcadores/pontuação/espaços e linhas vazias.
+              local meaningful
+              meaningful=$(printf '%s\n' "$section" \
+                | sed -E 's/[[:space:]]+//g; s/[.*_`~>#-]+//g' \
+                | grep -v '^$')
+
+              # Seção vazia => sem blocker.
+              [ -z "$meaningful" ] && return 1
+
+              # Seção com linha que NÃO é negação (PT ou EN) => finding real.
+              if printf '%s\n' "$meaningful" \
+                | grep -qivE '^(none|nenhum|nenhuma|sem|zero|n/?a|nada)'; then
+                return 0
+              fi
+              return 1
+            fi
+
+            # 2) Fallback: sem header de seção, procura marcadores fortes inline
+            #    (ex.: "**Bloqueante**") e aplica guard de negação PT+EN.
+            if printf '%s\n' "$content" | grep -qiE '\*\*(bloqueante|cr[ií]tico)\*\*'; then
+              if printf '%s\n' "$content" \
+                | grep -qiE '(nenhum|sem|zero|n[aã]o h[aá]|none|no)[^.]{0,40}(bloqueante|cr[ií]tico|blocker)'; then
+                return 1
+              fi
+              return 0
+            fi
+
+            return 1
+          }
 
           HAS_BLOCKERS=false
           BLOCKER_AGENTS=""
@@ -515,19 +565,12 @@ jobs:
 
             CLEAN_CONTENT=$(perl -pe 's/\e\[[0-9;]*[mGKHJF]//g; s/\e\][^\a]*\a//g; s/\e\[[\?]?[0-9;]*[a-zA-Z]//g; s/\x1b[^[]*//g; s/\r//g' "$REVIEW_FILE")
 
-            for pattern in "${BLOCKER_PATTERNS[@]}"; do
-              if echo "$CLEAN_CONTENT" | grep -qiE "$pattern"; then
-                # Verificar se não é um falso positivo
-                if echo "$CLEAN_CONTENT" | grep -qiE "(nenhum|sem|zero|não há).*(bloqueante|crítico)"; then
-                  continue
-                fi
-                HAS_BLOCKERS=true
-                if [[ "$BLOCKER_AGENTS" != *"$local_name"* ]]; then
-                  BLOCKER_AGENTS="${BLOCKER_AGENTS}${BLOCKER_AGENTS:+, }${local_name}"
-                fi
-                break
+            if section_has_real_blocker "$CLEAN_CONTENT"; then
+              HAS_BLOCKERS=true
+              if [[ "$BLOCKER_AGENTS" != *"$local_name"* ]]; then
+                BLOCKER_AGENTS="${BLOCKER_AGENTS}${BLOCKER_AGENTS:+, }${local_name}"
               fi
-            done
+            fi
           done < <(jq -c '.agents[]' "$CONFIG_FILE")
 
           # Verificar resultados das validações estáticas (severity: error = bloqueante)
