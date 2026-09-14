@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.2 (2026-09-14)
+
+### Correções
+
+- Corrigir detecção de findings bloqueantes no quality gate do code review: a análise passa a ser por seção (bloco sob o header "## Bloqueante"/"## Crítico") em vez de grep no texto inteiro, e o guard de negação reconhece português e inglês (ex.: "None."). Elimina o falso positivo em que o header de severidade sem findings bloqueava a PR indevidamente, e o falso negativo em que uma negação em outra parte do texto anulava um finding real.
+
 ## 0.8.1 (2026-09-01)
 
 ### CI/CD
